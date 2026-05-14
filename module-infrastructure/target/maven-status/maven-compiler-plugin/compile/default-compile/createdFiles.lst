@@ -1,0 +1,5 @@
+com/campushub/infrastructure/Utils/PageableUtils.class
+com/campushub/infrastructure/domain/AuditableEntity.class
+com/campushub/infrastructure/redis/RedisConfig.class
+com/campushub/infrastructure/redis/RedisKeyConstants.class
+com/campushub/infrastructure/domain/BaseEntity.class

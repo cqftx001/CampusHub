@@ -1,0 +1,102 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: campushub
+  datasource:
+    url: jdbc:postgresql://localhost:5432/campushub
+    username: campushub
+    password: campushub
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations:
+      - classpath:db/migration/identity
+      - classpath:db/migration/catalog
+      - classpath:db/migration/trading
+      - classpath:db/migration/messaging
+      - classpath:db/migration/media
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${GMAIL_APP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+identity:
+  email-verification:
+    code-length: 6
+    code-ttl: 10m
+    resend-interval: 60s
+    max-attempts: 5
+    code-pepper: ${EMAIL_CODE_PEPPER}
+
+campushub:
+  cors:
+    # 开发环境前端 origin，prod profile 里覆盖
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:5173   # vite 默认端口
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - "*"
+    exposed-headers:
+      - X-Request-Id
+    allow-credentials: true
+    max-age-seconds: 3600
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+jwt:
+  secret: ${ENCODED_SECRET_KEY}
+  access-token-expiration: 900000
+  refresh-token-expiration: 604800000
+  refresh-token-cookie-name: refresh_token
+  refresh-token-cookie-path: /api/auth/session
+  refresh-token-cookie-secure: ${REFRESH_TOKEN_COOKIE_SECURE:false}
+  refresh-token-cookie-same-site: Strict
+
+logging:
+  level:
+    com.campushub: debug
+    org.springframework.security: info
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+campushub:
+  cors:
+    allowed-origins:
+      - https://campushub.example.com   # 生产环境真实域名
+      -
+logging:
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","logger":"%c","message":"%m"}%n'

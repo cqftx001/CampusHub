@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/campushub-bootstrap/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/campushub-bootstrap/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-catalog/catalog-api/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-catalog/catalog-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-catalog/catalog-impl/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-catalog/catalog-impl/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-catalog/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-catalog/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-identity/identity-api/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-identity/identity-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-identity/identity-impl/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-identity/identity-impl/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-identity/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-identity/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-infrastructure/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-infrastructure/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-media/media-api/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-media/media-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-media/media-impl/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-media/media-impl/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-media/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-media/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-messaging/messaging-api/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-messaging/messaging-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-messaging/messaging-impl/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-messaging/messaging-impl/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-messaging/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-messaging/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-security/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-security/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-trading/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-trading/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-trading/trading-api/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-trading/trading-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-trading/trading-impl/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/module-trading/trading-impl/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/shared-kernel/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/shared-kernel/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/shared-test/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/shared-test/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
+  </component>
+</project>

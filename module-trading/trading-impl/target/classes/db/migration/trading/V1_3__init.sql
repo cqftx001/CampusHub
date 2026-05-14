@@ -1,0 +1,8 @@
+CREATE SCHEMA IF NOT EXISTS trading;
+
+CREATE TABLE trading.orders (
+    id BIGSERIAL PRIMARY KEY,
+    buyer_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

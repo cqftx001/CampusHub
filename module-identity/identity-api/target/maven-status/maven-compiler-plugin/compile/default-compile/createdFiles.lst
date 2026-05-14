@@ -1,0 +1,10 @@
+com/campushub/identity/api/dto/SendEmailCodeRequest.class
+com/campushub/identity/api/dto/UpdateProfileRequest.class
+com/campushub/identity/api/dto/RegisterRequest.class
+com/campushub/identity/api/dto/VerifyEmailRequest.class
+com/campushub/identity/api/dto/OAuthLoginRequest.class
+com/campushub/identity/api/dto/LoginRequest.class
+com/campushub/identity/api/dto/EmailCodeLoginRequest.class
+com/campushub/identity/api/vo/AuthResponse.class
+com/campushub/identity/api/IdentityModuleApi.class
+com/campushub/identity/api/vo/UserView.class
