@@ -22,8 +22,8 @@ public class RefreshToken extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(nullable = false, unique = true, length = 255)
-    private String token;
+    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
+    private String tokenHash;
 
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
@@ -31,31 +31,62 @@ public class RefreshToken extends BaseEntity {
     @Column(nullable = false)
     private boolean revoked;
 
-    private RefreshToken(UUID userId, String token, Instant expiresAt) {
+    @Column(name = "session_id", nullable = false)
+    private UUID sessionId;
+
+    @Column(name = "token_family_id", nullable = false)
+    private UUID tokenFamilyId;
+
+    @Column(name = "last_used_at")
+    private Instant lastUsedAt;
+
+    @Column(name = "revoked_at")
+    private Instant revokedAt;
+
+    @Column(name = "revoke_reason", length = 100)
+    private String revokeReason;
+
+
+    private RefreshToken(
+            UUID userId,
+            UUID sessionId,
+            UUID tokenFamilyId,
+            String tokenHash,
+            Instant expiresAt
+    ) {
         this.userId = userId;
-        this.token = token;
+        this.sessionId = sessionId;
+        this.tokenFamilyId = tokenFamilyId;
+        this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
         this.revoked = false;
     }
 
-    public static RefreshToken issue(UUID userId, String token, Instant expiresAt) {
-        if (userId == null) {
-            throw new IllegalArgumentException("User id must not be null");
-        }
-        if (token == null || token.isBlank()) {
-            throw new IllegalArgumentException("Token must not be blank");
-        }
-        if (expiresAt == null) {
-            throw new IllegalArgumentException("Expiration time must not be null");
-        }
-        return new RefreshToken(userId, token, expiresAt);
+
+    public static RefreshToken issue(
+            UUID userId,
+            UUID sessionId,
+            UUID tokenFamilyId,
+            String tokenHash,
+            Instant expiresAt
+    ) {
+        if (userId == null) throw new IllegalArgumentException("User id must not be null");
+        if (sessionId == null) throw new IllegalArgumentException("Session id must not be null");
+        if (tokenFamilyId == null) throw new IllegalArgumentException("Token family id must not be null");
+        if (tokenHash == null || tokenHash.isBlank()) throw new IllegalArgumentException("Token hash must not be blank");
+        if (expiresAt == null) throw new IllegalArgumentException("Expiration time must not be null");
+
+        return new RefreshToken(userId, sessionId, tokenFamilyId, tokenHash, expiresAt);
     }
 
     /**
      * 作废 token（退出登录、改密码时调用）。
      */
-    public void revoke() {
+    public void revoke(String reason) {
+        if(this.revoked) return;
         this.revoked = true;
+        this.revokedAt = Instant.now();
+        this.revokeReason = reason;
     }
 
     /**

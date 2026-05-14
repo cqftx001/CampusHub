@@ -27,6 +27,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class EmailVerificationServiceImplTest {
 
+    static final int EMAIL_CODE_LENGTH = 6;
+
     @Mock StringRedisTemplate redisTemplate;
     @Mock ValueOperations<String, String> valueOps;
     @Mock JavaMailSender mailSender;
@@ -37,7 +39,7 @@ class EmailVerificationServiceImplTest {
     EmailVerificationServiceImpl service;
 
     static final EmailVerificationProperties PROPS = new EmailVerificationProperties(
-            6, Duration.ofMinutes(5), Duration.ofSeconds(60), 3, "test-pepper"
+             Duration.ofMinutes(5), Duration.ofSeconds(60), 3, "test-pepper"
     );
 
     @BeforeEach
@@ -80,7 +82,7 @@ class EmailVerificationServiceImplTest {
             verify(self).sendEmailAsync(anyString(), codeCaptor.capture(), any());
 
             String code = codeCaptor.getValue();
-            assertThat(code).hasSize(PROPS.codeLength());
+            assertThat(code).hasSize(EMAIL_CODE_LENGTH);
             assertThat(code).matches("\\d+");
         }
 

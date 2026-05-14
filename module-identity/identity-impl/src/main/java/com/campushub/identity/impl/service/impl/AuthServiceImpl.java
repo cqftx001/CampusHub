@@ -21,7 +21,6 @@ import com.campushub.identity.impl.service.EmailVerificationService;
 import com.campushub.identity.impl.service.TokenPair;
 import com.campushub.security.config.JwtProperties;
 import com.campushub.security.jwt.JwtUtils;
-import com.campushub.shared.exception.BadRequestException;
 import com.campushub.shared.exception.ConflictException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +28,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.Locale;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -208,9 +212,11 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidRefreshTokenException();
         }
 
-        // 1. 查找 refresh token
+        // 1. hash + 查找 hashed refresh token
+        String rehashedRefreshToken = hashRefreshToken(refreshToken);
+
         RefreshToken storedToken = refreshTokenRepository
-                .findByToken(refreshToken)
+                .findByTokenHash(rehashedRefreshToken)
                 .orElseThrow(() -> new InvalidRefreshTokenException());
 
         // 2. 验证有效性
@@ -218,17 +224,21 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidRefreshTokenException("Refresh token is expired or revoked");
         }
 
-        // 3. 作废旧 token
-        storedToken.revoke();
-        refreshTokenRepository.save(storedToken);
-
-        // 4. 查找用户并生成新 token 对
         User user = userRepository.findById(storedToken.getUserId())
                 .orElseThrow(() -> new UserNotFoundException(storedToken.getUserId()));
 
-        return generateTokenPair(user);
+        if(!user.isActive()){
+            throw new AccountNotActiveException(user.getStatus());
+        }
+
+        // 3. 作废旧 token
+        storedToken.revoke("ROTATED");
+        refreshTokenRepository.save(storedToken);
+
+        return generateTokenPair(user, storedToken.getSessionId(), storedToken.getTokenFamilyId());
     }
 
+    // ==================== logout ====================
     /**
      * 退出登录：作废 refresh token。
      * access token 没办法主动作废（JWT 特性），等它自然过期（30 分钟）。
@@ -239,15 +249,36 @@ public class AuthServiceImpl implements AuthService {
         if (refreshToken == null || refreshToken.isBlank()) {
             return;
         }
-        refreshTokenRepository.findByToken(refreshToken)
+        String hashedRefreshToken = hashRefreshToken(refreshToken);
+
+        refreshTokenRepository.findByTokenHash(hashedRefreshToken)
                 .ifPresent(token -> {
-                    token.revoke();
+                    token.revoke("LOGOUT");
                     refreshTokenRepository.save(token);
                     log.info("User logged out, refresh token revoked");
                 });
     }
 
     // ==================== 私有方法 ====================
+
+    /**
+     * Encode refresh token
+     * Prevent storing data in plaintext.
+     */
+    private String hashRefreshToken(String refreshToken){
+        if(refreshToken == null || refreshToken.isBlank()){
+            throw new IllegalArgumentException("Refresh token must not be blank");
+        }
+
+        try{
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            String raw = refreshToken + ":" + jwtProperties.getRefreshTokenPepper();
+            byte[] hashBytes = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hashBytes);
+        } catch (NoSuchAlgorithmException ex){
+            throw new IllegalStateException("SHA-256 algorithm is not available", ex);
+        }
+    }
 
     /**
      * 根据 identifier（邮箱或用户名）查找用户。
@@ -268,27 +299,35 @@ public class AuthServiceImpl implements AuthService {
      * 生成 access token + refresh token 对。
      * 登录和续期都调这个方法，避免重复代码。
      */
-    private TokenPair generateTokenPair(User user) {
+    private TokenPair generateTokenPair(User user){
+        return generateTokenPair(user, UUID.randomUUID(), UUID.randomUUID());
+    }
+    private TokenPair generateTokenPair(User user, UUID sessionId, UUID tokenFamilyId) {
+
         String roles = "ROLE_USER";
+
         // 1. 生成 access token（JWT）
         String accessToken = jwtUtils.generateToken(
                 user.getId(),
                 user.getEmail(),
-                roles
+                roles,
+                sessionId
         );
 
-        // 2. 生成 refresh token（随机字符串）
-        String refreshTokenStr = jwtUtils.generateRefreshToken();
+        // 2. 生成 refresh token（随机字符串）+ Hash
+        String rawRefreshToken = jwtUtils.generateRefreshToken();
+        String hashedRefreshToken = hashRefreshToken(rawRefreshToken);
+
 
         // 3. 保存 refresh token 到数据库
         RefreshToken refreshToken = RefreshToken.issue(
                 user.getId(),
-                refreshTokenStr,
+                sessionId,
+                tokenFamilyId,
+                hashedRefreshToken,
                 Instant.now().plusMillis(jwtProperties.getRefreshTokenExpiration())
         );
         refreshTokenRepository.save(refreshToken);
-
-        log.info("Token pair generated for user: {}", user.getId());
 
         // 4. 返回
         AuthResponse authResponse = AuthResponse.bearer(
@@ -297,7 +336,10 @@ public class AuthServiceImpl implements AuthService {
                 jwtProperties.getAccessTokenExpiration(),
                 roles
         );
-        return new TokenPair(authResponse, refreshTokenStr);
+
+        log.info("Token pair generated for user={}, sessionId={}", user.getId(), sessionId);
+
+        return new TokenPair(authResponse, rawRefreshToken);
     }
 
     /**

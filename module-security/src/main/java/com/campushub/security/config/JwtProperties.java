@@ -24,4 +24,6 @@ public class JwtProperties {
     private boolean refreshTokenCookieSecure = true;
 
     private String refreshTokenCookieSameSite = "Strict";
+
+    private String refreshTokenPepper;
 }

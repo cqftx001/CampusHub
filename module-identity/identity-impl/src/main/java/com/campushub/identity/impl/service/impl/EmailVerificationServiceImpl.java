@@ -32,6 +32,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     private final JavaMailSender mailSender;
     private final EmailVerificationProperties properties;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    static final int EMAIL_CODE_LENGTH = 6;
 
     @Lazy
     @Autowired
@@ -71,7 +72,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
             throw new BadRequestException(IdentityErrorCode.EMAIL_CODE_RESEND_INTERVAL);
         }
 
-        String code = generateCode(properties.codeLength());
+        String code = generateCode(EMAIL_CODE_LENGTH);
         String codeKey = codeKey(purpose, email);
         String attemptsKey = attemptsKey(purpose, email);
 

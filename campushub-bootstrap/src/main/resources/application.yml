@@ -43,7 +43,6 @@ spring:
 
 identity:
   email-verification:
-    code-length: 6
     code-ttl: 10m
     resend-interval: 60s
     max-attempts: 5
@@ -81,6 +80,8 @@ jwt:
   refresh-token-cookie-path: /api/auth/session
   refresh-token-cookie-secure: ${REFRESH_TOKEN_COOKIE_SECURE:false}
   refresh-token-cookie-same-site: Strict
+  # Simply reuse the email code pepper
+  refresh-token-pepper: ${REFRESH_TOKEN_PEPPER}
 
 logging:
   level:
