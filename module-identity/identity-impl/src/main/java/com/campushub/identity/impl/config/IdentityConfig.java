@@ -9,7 +9,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.Executor;
 
 @Configuration
-@EnableAsync
+@EnableAsync(proxyTargetClass = true)
 @EnableConfigurationProperties(EmailVerificationProperties.class)
 public class IdentityConfig {
 

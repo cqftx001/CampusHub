@@ -41,9 +41,27 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="CampusHub" options="" />
-      <module name="module-infrastructure" options="" />
-      <module name="module-security" options="" />
+      <module name="CampusHub" options="-parameters" />
+      <module name="campushub-bootstrap" options="-parameters" />
+      <module name="catalog-api" options="-parameters" />
+      <module name="catalog-impl" options="-parameters" />
+      <module name="identity-api" options="-parameters" />
+      <module name="identity-impl" options="-parameters" />
+      <module name="media-api" options="-parameters" />
+      <module name="media-impl" options="-parameters" />
+      <module name="messaging-api" options="-parameters" />
+      <module name="messaging-impl" options="-parameters" />
+      <module name="module-catalog" options="-parameters" />
+      <module name="module-identity" options="-parameters" />
+      <module name="module-infrastructure" options="-parameters" />
+      <module name="module-media" options="-parameters" />
+      <module name="module-messaging" options="-parameters" />
+      <module name="module-security" options="-parameters" />
+      <module name="module-trading" options="-parameters" />
+      <module name="shared-kernel" options="-parameters" />
+      <module name="shared-test" options="-parameters" />
+      <module name="trading-api" options="-parameters" />
+      <module name="trading-impl" options="-parameters" />
     </option>
   </component>
 </project>

@@ -49,6 +49,26 @@ identity:
     max-attempts: 5
     code-pepper: ${EMAIL_CODE_PEPPER}
 
+campushub:
+  cors:
+    # 开发环境前端 origin，prod profile 里覆盖
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:5173   # vite 默认端口
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - "*"
+    exposed-headers:
+      - X-Request-Id
+    allow-credentials: true
+    max-age-seconds: 3600
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -71,21 +91,12 @@ spring:
   config:
     activate:
       on-profile: prod
+
+campushub:
+  cors:
+    allowed-origins:
+      - https://campushub.example.com   # 生产环境真实域名
+      -
 logging:
   pattern:
     console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","logger":"%c","message":"%m"}%n'
-
-bankx:
-  framework:
-    swagger:
-      swagger-path: com.bankx.controller
-      title: BankX
-      description: BankX API Documentation
-      contact-name: KC
-      contact-url: https://github.com/cqftx001
-      contact-email: qifanc666@gmail.com
-    oss:
-      endpoint: ${OSS_ENDPOINT}
-      accessKeyId: ${OSS_ACCESS_KEY_ID}
-      accessKeySecret: ${OSS_ACCESS_KEY_SECRET}
-      bucketName: ${OSS_BUCKET_NAME}

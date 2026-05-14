@@ -6,6 +6,7 @@ import com.campushub.identity.impl.service.EmailVerificationService;
 import com.campushub.shared.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.MailException;
@@ -32,7 +33,9 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     private final EmailVerificationProperties properties;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    private final @Lazy EmailVerificationServiceImpl self;
+    @Lazy
+    @Autowired
+    private EmailVerificationServiceImpl self;
 
     private static final String EMAIL_LIMIT_PREFIX = "email:%s:limit:";
     private static final String EMAIL_ATTEMPTS_PREFIX = "email:%s:attempts:";
@@ -145,32 +148,14 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         return code.toString();
     }
 
-    @Async("emailExecutor")
+    @Async("mailExecutor")
     public void sendEmailAsync(String email, String code, EmailCodePurpose purpose) {
         try{
             SimpleMailMessage message = new SimpleMailMessage();
 
             message.setTo(email);
             message.setSubject(purpose.subject);
-            message.setText("""
-            Welcome to CampusHub!
-
-            %s
-
-            %s
-
-            This code will expire in %d minutes.
-
-            If you did not have a CampusHub account, please ignore this email.
-            Your account will not be activated unless this code is verified.
-
-            Thanks,
-            CampusHub
-            """.formatted(
-                    purpose.bodyLine,
-                    code,
-                    properties.codeTtl().toMinutes()
-            ));
+            message.setText(buildEmailText(code, purpose));
 
             mailSender.send(message);
         } catch(MailException ex){
@@ -196,26 +181,55 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         return EMAIL_LIMIT_PREFIX.formatted(purpose.key) + email;
     }
 
+    private String buildEmailText(String code, EmailCodePurpose purpose) {
+        return """
+                Welcome to CampusHub!
+
+                %s
+
+                %s
+
+                This code will expire in %d minutes.
+
+                %s
+
+                Thanks,
+                CampusHub
+                """.formatted(
+                purpose.bodyLine,
+                code,
+                properties.codeTtl().toMinutes(),
+                purpose.footer
+        );
+    }
+
     enum EmailCodePurpose {
         REGISTER(
                 "register",
                 "Verify your CampusHub email",
-                "Use the verification code below to complete your registration:"
+                "Use the verification code below to complete your registration:",
+                """
+                If you did not create a CampusHub account, please ignore this email.
+                Your account will not be activated unless this code is verified.
+                """
         ),
         LOGIN(
                 "login",
                 "Your CampusHub login code",
-                "Use the verification code below to sign in to CampusHub:"
+                "Use the verification code below to sign in to CampusHub:",
+                "If you did not request this login code, please ignore this email."
         );
 
         private final String key;
         private final String subject;
         private final String bodyLine;
+        private final String footer;
 
-        EmailCodePurpose(String key, String subject, String bodyLine) {
+        EmailCodePurpose(String key, String subject, String bodyLine, String footer) {
             this.key = key;
             this.subject = subject;
             this.bodyLine = bodyLine;
+            this.footer = footer;
         }
     }
 }

@@ -1,6 +1,6 @@
 com/campushub/bootstrap/config/GlobalExceptionHandler.class
 com/campushub/bootstrap/config/JpaConfig.class
-com/campushub/bootstrap/config/RedisConfig.class
+com/campushub/bootstrap/config/CorsProperties.class
 com/campushub/bootstrap/config/RequestIdFilter.class
 com/campushub/bootstrap/config/SecurityConfig.class
 com/campushub/bootstrap/config/OpenApiConfig.class

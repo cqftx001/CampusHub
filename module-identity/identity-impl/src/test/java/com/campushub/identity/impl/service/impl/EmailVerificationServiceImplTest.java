@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class EmailVerificationServiceImplTest {
@@ -29,7 +30,9 @@ class EmailVerificationServiceImplTest {
     @Mock StringRedisTemplate redisTemplate;
     @Mock ValueOperations<String, String> valueOps;
     @Mock JavaMailSender mailSender;
-    @Mock EmailVerificationServiceImpl self;
+
+    @Mock
+    EmailVerificationServiceImpl self;
 
     EmailVerificationServiceImpl service;
 
@@ -40,7 +43,8 @@ class EmailVerificationServiceImplTest {
     @BeforeEach
     void setUp() {
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        service = new EmailVerificationServiceImpl(redisTemplate, mailSender, PROPS, self);
+        service = new EmailVerificationServiceImpl(redisTemplate, mailSender, PROPS);
+        ReflectionTestUtils.setField(service, "self", self);
     }
 
     // ──────────────── sendRegisterCode ────────────────
