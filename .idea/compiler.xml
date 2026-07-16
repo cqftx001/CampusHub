@@ -7,61 +7,34 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-      </profile>
-      <profile name="Annotation profile for campushub" enabled="true">
-        <sourceOutputDir name="target/generated-sources/annotations" />
-        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
-        <outputRelativeToContentRoot value="true" />
-        <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok-mapstruct-binding/0.2.0/lombok-mapstruct-binding-0.2.0.jar" />
-          <entry name="$MAVEN_REPOSITORY$/org/mapstruct/mapstruct-processor/1.5.5.Final/mapstruct-processor-1.5.5.Final.jar" />
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok-mapstruct-binding/0.2.0/lombok-mapstruct-binding-0.2.0.jar" />
-          <entry name="$MAVEN_REPOSITORY$/org/mapstruct/mapstruct-processor/1.5.5.Final/mapstruct-processor-1.5.5.Final.jar" />
-        </processorPath>
-        <module name="catalog-api" />
-        <module name="catalog-impl" />
-        <module name="module-security" />
-        <module name="module-infrastructure" />
-        <module name="campushub-bootstrap" />
+        <module name="marketplace" />
+        <module name="auth" />
+        <module name="assistant" />
         <module name="shared-kernel" />
-        <module name="shared-test" />
-        <module name="identity-impl" />
-        <module name="identity-api" />
-        <module name="trading-impl" />
-        <module name="media-api" />
-        <module name="media-impl" />
-        <module name="trading-api" />
-        <module name="messaging-api" />
-        <module name="messaging-impl" />
+        <module name="payment" />
+        <module name="user" />
+        <module name="campushub-app" />
+        <module name="messaging" />
+        <module name="order" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel target="21" />
+    <bytecodeTargetLevel target="21">
+      <module name="identity" target="21" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="CampusHub" options="-parameters" />
-      <module name="campushub-bootstrap" options="-parameters" />
-      <module name="catalog-api" options="-parameters" />
-      <module name="catalog-impl" options="-parameters" />
-      <module name="identity-api" options="-parameters" />
-      <module name="identity-impl" options="-parameters" />
-      <module name="media-api" options="-parameters" />
-      <module name="media-impl" options="-parameters" />
-      <module name="messaging-api" options="-parameters" />
-      <module name="messaging-impl" options="-parameters" />
-      <module name="module-catalog" options="-parameters" />
-      <module name="module-identity" options="-parameters" />
-      <module name="module-infrastructure" options="-parameters" />
-      <module name="module-media" options="-parameters" />
-      <module name="module-messaging" options="-parameters" />
-      <module name="module-security" options="-parameters" />
-      <module name="module-trading" options="-parameters" />
+      <module name="CampusHub" options="" />
+      <module name="assistant" options="-parameters" />
+      <module name="auth" options="-parameters" />
+      <module name="campushub-app" options="-parameters" />
+      <module name="identity" options="-parameters" />
+      <module name="marketplace" options="-parameters" />
+      <module name="messaging" options="-parameters" />
+      <module name="order" options="-parameters" />
+      <module name="payment" options="-parameters" />
       <module name="shared-kernel" options="-parameters" />
-      <module name="shared-test" options="-parameters" />
-      <module name="trading-api" options="-parameters" />
-      <module name="trading-impl" options="-parameters" />
+      <module name="user" options="-parameters" />
     </option>
   </component>
 </project>

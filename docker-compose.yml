@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: campushub
-      POSTGRES_USER: campushub
-      POSTGRES_PASSWORD: campushub
+      POSTGRES_DB: ${POSTGRES_DB:-campushub}
+      POSTGRES_USER: ${POSTGRES_USER:-campushub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-campushub}
     ports:
       - "5432:5432"
     volumes:

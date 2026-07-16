@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.campushub.identity.impl.service.impl.EmailVerificationServiceImplTest
--------------------------------------------------------------------------------
-Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.430 s -- in com.campushub.identity.impl.service.impl.EmailVerificationServiceImplTest

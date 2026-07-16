@@ -1,8 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/assistant/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/assistant/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/auth/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/auth/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/campushub-app/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/campushub-app/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/campushub-bootstrap/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/campushub-bootstrap/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/identity/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/identity/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/marketplace/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/marketplace/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/messaging/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/messaging/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/module-catalog/catalog-api/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/module-catalog/catalog-api/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/module-catalog/catalog-impl/src/main/java" charset="UTF-8" />
@@ -37,11 +49,19 @@
     <file url="file://$PROJECT_DIR$/module-trading/trading-api/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/module-trading/trading-impl/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/module-trading/trading-impl/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/order/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/order/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/payment/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/payment/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/shared-kernel/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/shared-kernel/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/shared-test/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/shared-test/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/user/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/user/src/main/resources" charset="UTF-8" />
+    <file url="file:///src/main/java" charset="UTF-8" />
+    <file url="file:///src/main/resources" charset="UTF-8" />
   </component>
 </project>

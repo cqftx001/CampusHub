@@ -1,1 +1,21 @@
+# Local environment
 .env
+.env.*
+!.env.example
+
+# Build outputs
+target/
+out/
+build/
+
+# Logs
+*.log
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

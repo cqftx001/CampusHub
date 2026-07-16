@@ -1,8 +1,0 @@
-CREATE SCHEMA IF NOT EXISTS media;
-
-CREATE TABLE media.assets (
-    id BIGSERIAL PRIMARY KEY,
-    object_key VARCHAR(255) NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);

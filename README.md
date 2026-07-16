@@ -1,52 +1,76 @@
 # CampusHub
 
-CampusHub is a campus C2C second-hand marketplace built as a modular monolith that is intentionally shaped for later extraction into microservices. This repository contains only the architectural skeleton and one thin end-to-end slice so we can verify boundaries, packaging, persistence isolation, and module wiring before filling in business logic.
+CampusHub is a modular monolith being developed one vertical slice at a time.
+The Auth Module is the first implemented slice; all other feature modules remain
+empty boundaries.
 
-## Architecture
+## Project Structure
 
 ```text
-campushub-bootstrap
-        |
-        +--> identity-impl --> identity-api --> shared-kernel
-        +--> catalog-impl  --> catalog-api  --> shared-kernel
-        +--> trading-impl  --> trading-api  --> shared-kernel
-        +--> messaging-impl --> messaging-api --> shared-kernel
-        +--> media-impl --> media-api --> shared-kernel
-
-catalog-impl --> identity-api
-trading-impl --> identity-api + catalog-api
+CampusHub
+├── campushub-app   # Spring Boot entry point and framework assembly
+├── shared-kernel   # Shared response/error/request templates only
+├── auth            # Authentication boundary
+├── user            # User account boundary
+├── marketplace     # Listing, product, and inventory boundary
+├── order           # Order boundary
+├── messaging       # Messaging boundary
+├── payment         # Payment boundary
+└── assistant       # Conversational assistant boundary
 ```
 
-## Module Rules
+All feature modules are single Maven modules for now. An `api` / `impl` split is
+introduced only when a real cross-module contract needs that separation.
 
-1. `*-api` modules expose only public module interfaces, DTO records, and domain events. They depend only on `shared-kernel`.
-2. `*-impl` modules keep services, entities, repositories, controllers, and mappers package-private whenever Spring allows it.
-3. `*-impl` modules may depend on other modules' `*-api`, never another module's `*-impl`. Only `campushub-bootstrap` depends on all impl modules.
-4. Cross-module sync calls go through `XxxModuleApi`. Async integration uses Spring application events with `@TransactionalEventListener`.
-5. Each module owns its own PostgreSQL schema and Flyway migrations. No cross-schema foreign keys and no cross-schema joins.
+```text
+                 campushub-app
+                       |
+       +---------------+---------------+
+       |       |       |       |       |
+      auth    user  marketplace order  ...
+       |       |       |       |       |
+       +---------------+---------------+
+                       |
+                 shared-kernel
+```
 
-## Quick Start
+Feature modules must not depend on one another directly by default. A dependency
+is added only after its use case and public contract are agreed. The application
+module is the composition root and may depend on every feature module.
+
+## Current Technology Baseline
+
+- Java 21
+- Spring Boot 3.x and Spring MVC
+- Spring Security with stateless JWT access tokens
+- Spring Data JPA and Flyway
+- Maven multi-module build
+- PostgreSQL and Redis local containers
+- JUnit 5 through Spring Boot's test starter
+- GitHub Actions verification
+
+OpenAPI, Testcontainers, model adapters, and the React frontend remain planned
+technologies. They will be introduced with the first behavior that genuinely
+needs them, rather than as unused framework code.
+
+## Development Rules
+
+1. Framework and module-structure changes may be written directly.
+2. Business behavior is designed and reviewed one feature at a time.
+3. Each feature module owns its own error code enum and exception when business
+   behavior is added. `shared-kernel` provides only the templates.
+4. Agree request DTOs and response VOs before implementing an endpoint.
+5. Update [api.md](api.md) whenever an endpoint contract is approved.
+6. Do not add speculative layers, dependencies, tables, or integrations.
+
+## Commands
 
 ```bash
-docker-compose up -d
-mvn clean install
-cd campushub-bootstrap
-mvn spring-boot:run
+docker compose up -d
+mvn verify
+docker compose config
+java -jar campushub-app/target/campushub-app-0.1.0-SNAPSHOT.jar
 ```
 
-Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-
-## Add A New Module
-
-1. Create `module-<name>` with `<name>-api` and `<name>-impl`.
-2. Add both child modules to the parent aggregator and root `<modules>`.
-3. Put only interfaces, DTO records, and events in `<name>-api`.
-4. Put entities, repositories, services, controllers, mappers, and migrations in `<name>-impl`.
-5. Give the module its own PostgreSQL schema and `db/migration/<name>/V1__init.sql`.
-6. Add ArchUnit boundary coverage if the new module introduces a new impl package.
-7. Wire the impl module into `campushub-bootstrap` only after its boundaries and tests are in place.
-# CampusHub
-# CampusHub
-# CampusHub
-# CampusHub
-# CampusHub
+The application starts on <http://localhost:8080>. Auth contracts are documented
+in [api.md](api.md).
