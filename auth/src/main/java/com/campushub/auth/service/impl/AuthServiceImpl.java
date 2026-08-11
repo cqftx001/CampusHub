@@ -1,119 +1,100 @@
 package com.campushub.auth.service.impl;
 
 import com.campushub.auth.domain.AuthAccount;
-import com.campushub.auth.dto.LoginRequest;
+import com.campushub.auth.domain.PasswordCredential;
 import com.campushub.auth.dto.RegisterRequest;
 import com.campushub.auth.error.AuthErrorCode;
 import com.campushub.auth.error.AuthException;
 import com.campushub.auth.repository.AuthAccountRepository;
-import com.campushub.auth.security.JwtService;
+import com.campushub.auth.repository.PasswordCredentialRepository;
 import com.campushub.auth.service.AuthService;
-import com.campushub.auth.vo.AuthResponse;
-import com.campushub.auth.vo.AuthUserView;
+import com.campushub.auth.vo.RegisterAccountView;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.Principal;
+import java.time.Instant;
 import java.util.Locale;
-import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
 
-    private static final String TOKEN_TYPE = "Bearer";
-
     private final AuthAccountRepository authAccountRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
+    private final PasswordCredentialRepository passwordCredentialRepository;
 
-    public AuthServiceImpl(AuthAccountRepository authAccountRepository,  PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthServiceImpl(AuthAccountRepository authAccountRepository, PasswordEncoder passwordEncoder, PasswordCredentialRepository passwordCredentialRepository) {
         this.authAccountRepository = authAccountRepository;
         this.passwordEncoder = passwordEncoder;
-        this.jwtService = jwtService;
+        this.passwordCredentialRepository = passwordCredentialRepository;
     }
 
     @Override
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
-        String username = normalize(request.username());
-        String email = normalize(request.email());
+    public RegisterAccountView register(RegisterRequest request) {
+        String username = normalizeIdentifier(request.username());
+        String email = normalizeIdentifier(request.email());
 
-        validateUsername(username);
-        validateEmail(email);
+        if(authAccountRepository.existsByUsername(username)) {
+            throw new AuthException(AuthErrorCode.USERNAME_ALREADY_TAKEN);
+        }
 
-        String passwordHash = passwordEncoder.encode(request.password());
-        AuthAccount account = new AuthAccount(
-                username,
-                email,
-                passwordHash
-        );
+        if(authAccountRepository.existsByEmail(email)) {
+            throw new AuthException(AuthErrorCode.EMAIL_ALREADY_REGISTERED);
+        }
 
         try{
+            AuthAccount account = new AuthAccount(username, email);
+
             AuthAccount savedAccount = authAccountRepository.saveAndFlush(account);
-            return createAuthResponse(savedAccount);
-        } catch (DataIntegrityViolationException ex){
-            throw new AuthException(AuthErrorCode.IDENTIFIER_ALREADY_REGISTERED);
+
+            PasswordCredential credential = new PasswordCredential(
+                    savedAccount.getId(),
+                    passwordEncoder.encode(request.password()),
+                    Instant.now()
+            );
+
+            passwordCredentialRepository.saveAndFlush(credential);
+
+            return toRegisterView(savedAccount);
+        } catch(DataIntegrityViolationException e){
+            throw new AuthException(
+                    AuthErrorCode.IDENTIFIER_ALREADY_REGISTERED
+            );
         }
-    }
-
-    @Override
-    public AuthResponse login(LoginRequest request) {
-        String identifier = normalize(request.identifier());
-
-        AuthAccount account =
-                authAccountRepository.findByEmailOrUsername(identifier, identifier)
-                        .filter(found -> passwordEncoder.matches(request.password(), found.getPasswordHash()))
-                        .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_CREDENTIALS));
-
-        return createAuthResponse(account);
-    }
-
-    @Override
-    public AuthUserView currentUser(UUID accountId) {
-        AuthAccount account = authAccountRepository.findById(accountId)
-                .orElseThrow(() -> new AuthException(AuthErrorCode.AUTHENTICATION_REQUIRED));
-
-        return toUserView(account);
     }
 
 
     // --- helper ---
-    private String normalize(String value){
-        return value.trim().toLowerCase(Locale.ROOT);
+    private String normalizeIdentifier(String identifier){
+        if(identifier == null) return null;
+
+        String normalized = identifier.strip();
+
+        return normalized.isEmpty() ? null : normalized.toLowerCase(Locale.ROOT);
     }
 
-    private void validateUsername(String username) {
-        if(authAccountRepository.existsByUsername(username)){
-            throw new AuthException(AuthErrorCode.USERNAME_ALREADY_TAKEN);
-        }
-    }
-
-    private void validateEmail(String email) {
-        if(authAccountRepository.existsByEmail(email)){
-            throw new AuthException(AuthErrorCode.EMAIL_ALREADY_REGISTERED);
-        }
-    }
-
-    private AuthResponse createAuthResponse(AuthAccount account){
-        String accessToken = jwtService.createAccessToken(account.getId());
-
-        return new AuthResponse(
-                accessToken,
-                TOKEN_TYPE,
-                jwtService.accessTokenTtlSeconds(),
-                toUserView(account)
-        );
-    }
-
-    private AuthUserView toUserView(AuthAccount account){
-        return new AuthUserView(
+    private RegisterAccountView toRegisterView(AuthAccount account){
+        return new RegisterAccountView(
                 account.getId(),
                 account.getUsername(),
                 account.getEmail(),
-                account.getCreatedAt()
+                true
         );
     }
+
+//    private AuthAccountView toView(AuthAccount account){
+//        return new AuthAccountView(
+//                account.getId(),
+//                account.getUsername(),
+//                account.getEmail(),
+//                account.getPhoneNumber(),
+//                account.isEnabled(),
+//                account.getEmailVerifiedAt(),
+//                account.getPhoneVerifiedAt(),
+//                account.getCreatedAt()
+//        );
+//    }
 }

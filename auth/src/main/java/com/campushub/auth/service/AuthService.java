@@ -1,19 +1,13 @@
 package com.campushub.auth.service;
 
-import com.campushub.auth.dto.LoginRequest;
 import com.campushub.auth.dto.RegisterRequest;
-import com.campushub.auth.vo.AuthResponse;
-import com.campushub.auth.vo.AuthUserView;
-
-import java.security.Principal;
-import java.util.UUID;
+import com.campushub.auth.vo.RegisterAccountView;
 
 public interface AuthService {
 
-    AuthResponse register(RegisterRequest registerRequest);
+    RegisterAccountView register(RegisterRequest request);
 
-    AuthResponse login(LoginRequest loginRequest);
+    void emailVerify(String email, String verificationCode);
 
-    AuthUserView currentUser(UUID accountId);
-
+    String sendVerificationCode(String email);
 }
