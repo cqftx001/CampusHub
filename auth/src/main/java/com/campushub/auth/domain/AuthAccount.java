@@ -65,6 +65,10 @@ public class AuthAccount extends BaseEntity {
             throw new IllegalStateException("Account does not have an email address.");
         }
 
+        if (emailVerifiedAt != null) {
+            return;
+        }
+
         this.emailVerifiedAt = Objects.requireNonNull(verifiedAt);
 
         this.enabled = true;

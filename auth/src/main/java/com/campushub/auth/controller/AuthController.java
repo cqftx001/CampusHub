@@ -1,8 +1,11 @@
 package com.campushub.auth.controller;
 
+import com.campushub.auth.dto.ConfirmEmailVerificationRequest;
 import com.campushub.auth.dto.LoginRequest;
 import com.campushub.auth.dto.RegisterRequest;
+import com.campushub.auth.dto.ResendEmailVerificationRequest;
 import com.campushub.auth.service.AuthService;
+import com.campushub.auth.service.EmailVerificationService;
 import com.campushub.auth.vo.RegisterAccountView;
 import com.campushub.shared.base.ResponseResult;
 import com.campushub.shared.utils.RequestUtils;
@@ -20,9 +23,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailVerificationService emailVerificationService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(
+            AuthService authService,
+            EmailVerificationService emailVerificationService
+    ) {
         this.authService = authService;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @PostMapping("/register")
@@ -39,23 +47,30 @@ public class AuthController {
                 .body(ResponseResult.success(account, requestId));
     }
 
-    /**
-     * Email Service: confirm / resend email verification
-     */
     @PostMapping("/email-verification/confirm")
-    public ResponseEntity<ResponseResult<AuthAccountView>> confirmEmailVerification(
-
+    public ResponseEntity<ResponseResult<Void>> confirmEmailVerification(
+            @Valid @RequestBody ConfirmEmailVerificationRequest request,
+            HttpServletRequest servletRequest
     ){
+        emailVerificationService.confirm(request.token());
+        String requestId = RequestUtils.getOrCreateRequestId(servletRequest);
+
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ResponseResult.success(null, null));
+                .body(ResponseResult.success(requestId));
     }
 
     @PostMapping("/email-verification/resend")
-    public ResponseEntity<ResponseResult<AuthAccountView>> resendEmailVerification(){
+    public ResponseEntity<ResponseResult<Void>> resendEmailVerification(
+            @Valid @RequestBody ResendEmailVerificationRequest request,
+            HttpServletRequest servletRequest
+    ){
+        emailVerificationService.resend(request.email());
+        String requestId = RequestUtils.getOrCreateRequestId(servletRequest);
+
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
-                .body(ResponseResult.success(null, null));
+                .body(ResponseResult.success(requestId));
     }
 
     /**
@@ -63,7 +78,7 @@ public class AuthController {
      * @return
      */
     @PostMapping("/login")
-    public ResponseEntity<ResponseResult<AuthAccountView>> login(
+    public ResponseEntity<ResponseResult<Void>> login(
             @RequestBody LoginRequest request,
             HttpServletRequest servletRequest
     ){

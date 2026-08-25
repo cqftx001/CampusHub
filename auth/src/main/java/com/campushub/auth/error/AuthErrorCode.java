@@ -22,6 +22,23 @@ public enum AuthErrorCode implements ErrorCode {
             HttpStatus.CONFLICT
     ),
 
+    EMAIL_VERIFICATION_TOKEN_INVALID(
+            "AUTH_1006",
+            "Email verification token is invalid or expired",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    EMAIL_VERIFICATION_UNAVAILABLE(
+            "AUTH_1007",
+            "Email verification is temporarily unavailable",
+            HttpStatus.SERVICE_UNAVAILABLE
+    ),
+
+    EMAIL_VERIFICATION_REQUIRED(
+            "AUTH_1008",
+            "Email verification is required",
+            HttpStatus.FORBIDDEN
+    ),
     ;
 
 

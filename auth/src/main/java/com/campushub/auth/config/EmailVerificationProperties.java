@@ -17,7 +17,7 @@ public record EmailVerificationProperties(
         Duration tokenTtl,
 
         @NotNull
-        Duration resendCoolDown,
+        Duration resendCooldown,
 
         @NotBlank
         String verificationUrl,
@@ -25,4 +25,13 @@ public record EmailVerificationProperties(
         @NotBlank
         String fromAddress
 ) {
+    public EmailVerificationProperties {
+        if (tokenTtl != null && (tokenTtl.isZero() || tokenTtl.isNegative())) {
+            throw new IllegalArgumentException("tokenTtl must be positive");
+        }
+        if (resendCooldown != null
+                && (resendCooldown.isZero() || resendCooldown.isNegative())) {
+            throw new IllegalArgumentException("resendCooldown must be positive");
+        }
+    }
 }

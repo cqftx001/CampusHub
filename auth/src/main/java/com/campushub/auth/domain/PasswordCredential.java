@@ -8,7 +8,7 @@ import java.util.UUID;
 
 @Entity
 @Table(
-     name = "local_credentials",
+     name = "password_credentials",
      schema = "auth"
 )
 public class PasswordCredential {

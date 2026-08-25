@@ -7,7 +7,4 @@ public interface AuthService {
 
     RegisterAccountView register(RegisterRequest request);
 
-    void emailVerify(String email, String verificationCode);
-
-    String sendVerificationCode(String email);
 }

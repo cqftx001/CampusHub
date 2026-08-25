@@ -1,9 +1,17 @@
 ALTER TABLE auth.accounts
-    ADD COLUMN phone_number VARCHAR(16),
-    ADD COLUMN enabled BOOLEAN NOT NULL DEFAULT FALSE,
-    ADD COLUMN email_verified_at TIMESTAMP WITH TIME ZONE,
-    ADD COLUMN phone_verified_at TIMESTAMP WITH TIME ZONE,
-ALTER COLUMN email DROP NOT NULL;
+    ADD COLUMN phone_number VARCHAR(16);
+
+ALTER TABLE auth.accounts
+    ADD COLUMN enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE auth.accounts
+    ADD COLUMN email_verified_at TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE auth.accounts
+    ADD COLUMN phone_verified_at TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE auth.accounts
+    ALTER COLUMN email DROP NOT NULL;
 
 ALTER TABLE auth.accounts
     ADD CONSTRAINT uk_auth_accounts_phone_number

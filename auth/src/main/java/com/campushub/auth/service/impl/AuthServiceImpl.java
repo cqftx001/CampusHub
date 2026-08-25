@@ -5,10 +5,12 @@ import com.campushub.auth.domain.PasswordCredential;
 import com.campushub.auth.dto.RegisterRequest;
 import com.campushub.auth.error.AuthErrorCode;
 import com.campushub.auth.error.AuthException;
+import com.campushub.auth.event.AccountRegisteredEvent;
 import com.campushub.auth.repository.AuthAccountRepository;
 import com.campushub.auth.repository.PasswordCredentialRepository;
 import com.campushub.auth.service.AuthService;
 import com.campushub.auth.vo.RegisterAccountView;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,11 +26,13 @@ public class AuthServiceImpl implements AuthService {
     private final AuthAccountRepository authAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordCredentialRepository passwordCredentialRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public AuthServiceImpl(AuthAccountRepository authAccountRepository, PasswordEncoder passwordEncoder, PasswordCredentialRepository passwordCredentialRepository) {
+    public AuthServiceImpl(AuthAccountRepository authAccountRepository, PasswordEncoder passwordEncoder, PasswordCredentialRepository passwordCredentialRepository, ApplicationEventPublisher eventPublisher) {
         this.authAccountRepository = authAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.passwordCredentialRepository = passwordCredentialRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -58,6 +62,13 @@ public class AuthServiceImpl implements AuthService {
 
             passwordCredentialRepository.saveAndFlush(credential);
 
+            eventPublisher.publishEvent(
+              new AccountRegisteredEvent(
+                      savedAccount.getId(),
+                      savedAccount.getEmail()
+              )
+            );
+
             return toRegisterView(savedAccount);
         } catch(DataIntegrityViolationException e){
             throw new AuthException(
@@ -65,6 +76,7 @@ public class AuthServiceImpl implements AuthService {
             );
         }
     }
+
 
 
     // --- helper ---
@@ -84,17 +96,4 @@ public class AuthServiceImpl implements AuthService {
                 true
         );
     }
-
-//    private AuthAccountView toView(AuthAccount account){
-//        return new AuthAccountView(
-//                account.getId(),
-//                account.getUsername(),
-//                account.getEmail(),
-//                account.getPhoneNumber(),
-//                account.isEnabled(),
-//                account.getEmailVerifiedAt(),
-//                account.getPhoneVerifiedAt(),
-//                account.getCreatedAt()
-//        );
-//    }
 }

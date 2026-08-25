@@ -25,7 +25,10 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 HttpMethod.POST,
-                                "/api/auth/register"
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/email-verification/confirm",
+                                "/api/auth/email-verification/resend"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );
