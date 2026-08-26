@@ -39,6 +39,31 @@ public enum AuthErrorCode implements ErrorCode {
             "Email verification is required",
             HttpStatus.FORBIDDEN
     ),
+    SESSION_ALREADY_REVOKED(
+            "AUTH_1009",
+            "Session is already revoked",
+            HttpStatus.BAD_REQUEST
+    ),
+    SESSION_ALREADY_EXPIRED(
+            "AUTH_1010",
+            "Session is already expired",
+            HttpStatus.BAD_REQUEST
+    ),
+    REFRESH_TOKEN_LENGTH_INVALID(
+            "AUTH_1011",
+            "Refresh token hash must be a SHA-256 hexadecimal value.",
+            HttpStatus.BAD_REQUEST
+    ),
+    REFRESH_TOKEN_EXPIRED(
+           "AUTH_1012",
+            "Refresh token is already expired",
+            HttpStatus.BAD_REQUEST
+    ),
+    REFRESH_TOKEN_NON_USABLE(
+            "AUTH_1013",
+            "Only an active, unexpired refresh token can be used",
+            HttpStatus.BAD_REQUEST
+    )
     ;
 
 
