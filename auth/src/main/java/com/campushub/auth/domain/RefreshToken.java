@@ -93,8 +93,8 @@ public class RefreshToken extends BaseEntity {
 
     public void markUsed(Instant usedAt,
                          UUID replacementTokenId){
-        Objects.requireNonNull(usedAt);
-        Objects.requireNonNull(replacedByTokenId);
+        Objects.requireNonNull(usedAt, "usedAt must not be null");
+        Objects.requireNonNull(replacementTokenId, "replacementTokenId must not be null");
 
         if(!isUsable(usedAt)){
             throw new AuthException(AuthErrorCode.REFRESH_TOKEN_NON_USABLE);
