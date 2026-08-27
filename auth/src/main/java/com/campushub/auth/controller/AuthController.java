@@ -1,11 +1,9 @@
 package com.campushub.auth.controller;
 
-import com.campushub.auth.dto.ConfirmEmailVerificationRequest;
-import com.campushub.auth.dto.LoginRequest;
-import com.campushub.auth.dto.RegisterRequest;
-import com.campushub.auth.dto.ResendEmailVerificationRequest;
+import com.campushub.auth.dto.*;
 import com.campushub.auth.service.AuthService;
 import com.campushub.auth.service.EmailVerificationService;
+import com.campushub.auth.vo.LoginView;
 import com.campushub.auth.vo.RegisterAccountView;
 import com.campushub.shared.base.ResponseResult;
 import com.campushub.shared.utils.RequestUtils;
@@ -78,17 +76,38 @@ public class AuthController {
      * @return
      */
     @PostMapping("/login")
-    public ResponseEntity<ResponseResult<Void>> login(
-            @RequestBody LoginRequest request,
-            HttpServletRequest servletRequest
+    public ResponseEntity<ResponseResult<LoginView>> login(
+            @Valid @RequestBody LoginRequest loginRequest,
+            HttpServletRequest request
     ){
+        LoginClientContext loginClientContext =
+                new LoginClientContext(
+                        request.getHeader("User-Agent"),
+                        request.getRemoteAddr()
+                );
+
+        LoginView loginView = authService.login(loginRequest, loginClientContext);
+
+        String requestId = RequestUtils.getOrCreateRequestId(request);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ResponseResult.success(loginView, requestId));
+    }
+
+    @PostMapping("/token/refresh")
+    public ResponseEntity<ResponseResult<LoginView>> refreshToken(
+        @Valid @RequestBody RefreshTokenRequest request,
+        HttpServletRequest servletRequest
+    ){
+        LoginView view = authService.refresh(request);
+
         String requestId = RequestUtils.getOrCreateRequestId(servletRequest);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ResponseResult.success(null, requestId));
+                .body(ResponseResult.success(view, requestId));
     }
-
 
 
 }

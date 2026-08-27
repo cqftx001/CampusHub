@@ -22,6 +22,18 @@ public enum AuthErrorCode implements ErrorCode {
             HttpStatus.CONFLICT
     ),
 
+    INVALID_CREDENTIALS(
+            "AUTH_1004",
+            "Identifier or password is incorrect",
+            HttpStatus.UNAUTHORIZED
+    ),
+
+    ACCESS_TOKEN_INVALID(
+            "AUTH_1005",
+            "Access token is missing, invalid, or expired",
+            HttpStatus.UNAUTHORIZED
+    ),
+
     EMAIL_VERIFICATION_TOKEN_INVALID(
             "AUTH_1006",
             "Email verification token is invalid or expired",
@@ -39,31 +51,50 @@ public enum AuthErrorCode implements ErrorCode {
             "Email verification is required",
             HttpStatus.FORBIDDEN
     ),
+
     SESSION_ALREADY_REVOKED(
             "AUTH_1009",
             "Session is already revoked",
             HttpStatus.BAD_REQUEST
     ),
+
     SESSION_ALREADY_EXPIRED(
             "AUTH_1010",
             "Session is already expired",
             HttpStatus.BAD_REQUEST
     ),
+
     REFRESH_TOKEN_LENGTH_INVALID(
             "AUTH_1011",
             "Refresh token hash must be a SHA-256 hexadecimal value.",
             HttpStatus.BAD_REQUEST
     ),
+
     REFRESH_TOKEN_EXPIRED(
            "AUTH_1012",
             "Refresh token is already expired",
             HttpStatus.BAD_REQUEST
     ),
+
     REFRESH_TOKEN_NON_USABLE(
             "AUTH_1013",
             "Only an active, unexpired refresh token can be used",
             HttpStatus.BAD_REQUEST
-    )
+    ),
+
+    ACCOUNT_DISABLED(
+            "AUTH_1014",
+            "Account is disabled",
+            HttpStatus.FORBIDDEN
+    ),
+
+    REFRESH_TOKEN_INVALID(
+            "AUTH_1015",
+            "Refresh token is invalid or expired",
+            HttpStatus.UNAUTHORIZED
+    ),
+
+
     ;
 
 

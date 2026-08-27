@@ -8,8 +8,11 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @Configuration(proxyBeanMethods = false)
 @EntityScan(basePackages = "com.campushub.auth")
 @EnableJpaRepositories(basePackages = "com.campushub.auth")
-@EnableConfigurationProperties(
-        EmailVerificationProperties.class
-)
+@EnableConfigurationProperties({
+        EmailVerificationProperties.class,
+        JwtProperties.class,
+        LoginSessionProperties.class
+})
 public class AuthModuleConfiguration {
+
 }

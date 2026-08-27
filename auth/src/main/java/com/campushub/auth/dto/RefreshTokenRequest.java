@@ -3,13 +3,9 @@ package com.campushub.auth.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record LoginRequest(
+public record RefreshTokenRequest(
         @NotBlank
-        @Size(max = 254)
-        String identifier,
-
-        @NotBlank
-        @Size(max = 72)
-        String password
+        @Size(max = 512)
+        String refreshToken
 ) {
 }

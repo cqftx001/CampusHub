@@ -9,6 +9,9 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Refresh Token存储在Database端 不保存raw token
+ */
 @Entity
 @Table(
         name = "refresh_tokens",

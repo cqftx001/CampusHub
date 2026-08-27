@@ -1,14 +1,22 @@
 package com.campushub.auth.service.impl;
 
-import com.campushub.auth.domain.AuthAccount;
-import com.campushub.auth.domain.PasswordCredential;
+import com.campushub.auth.config.LoginSessionProperties;
+import com.campushub.auth.domain.*;
+import com.campushub.auth.dto.LoginClientContext;
+import com.campushub.auth.dto.LoginRequest;
+import com.campushub.auth.dto.RefreshTokenRequest;
 import com.campushub.auth.dto.RegisterRequest;
 import com.campushub.auth.error.AuthErrorCode;
 import com.campushub.auth.error.AuthException;
 import com.campushub.auth.event.AccountRegisteredEvent;
-import com.campushub.auth.repository.AuthAccountRepository;
-import com.campushub.auth.repository.PasswordCredentialRepository;
+import com.campushub.auth.repository.*;
 import com.campushub.auth.service.AuthService;
+import com.campushub.auth.service.EmailVerificationService;
+import com.campushub.auth.token.IssuedAccessToken;
+import com.campushub.auth.token.IssuedRefreshToken;
+import com.campushub.auth.token.JwtAccessTokenIssuer;
+import com.campushub.auth.token.RefreshTokenIssuer;
+import com.campushub.auth.vo.LoginView;
 import com.campushub.auth.vo.RegisterAccountView;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -16,23 +24,67 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
 
 @Service
 @Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
 
+    /*
+     * 用于不存在的账户或不存在的密码凭证。
+     * 即使 identifier 不存在，也执行一次 BCrypt 比对(BCrypt 故意设计得很慢)，
+     * 减少基于响应时间进行账户枚举的可能性。
+     */
+    private static final String DUMMY_PASSWORD_HASH =
+            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
+
     private final AuthAccountRepository authAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordCredentialRepository passwordCredentialRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final RoleRepository roleRepository;
+    private final AccountRoleRepository accountRoleRepository;
+    private final LoginSessionRepository loginSessionRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final JwtAccessTokenIssuer accessTokenIssuer;
+    private final RefreshTokenIssuer refreshTokenIssuer;
+    private final LoginSessionProperties sessionProperties;
+    private final EmailVerificationService emailverificationService;
+    private final Clock clock;
 
-    public AuthServiceImpl(AuthAccountRepository authAccountRepository, PasswordEncoder passwordEncoder, PasswordCredentialRepository passwordCredentialRepository, ApplicationEventPublisher eventPublisher) {
+    public AuthServiceImpl(
+            AuthAccountRepository authAccountRepository,
+            PasswordEncoder passwordEncoder,
+            PasswordCredentialRepository passwordCredentialRepository,
+            ApplicationEventPublisher eventPublisher,
+            RoleRepository roleRepository,
+            AccountRoleRepository accountRoleRepository,
+            LoginSessionRepository loginSessionRepository,
+            RefreshTokenRepository refreshTokenRepository,
+            JwtAccessTokenIssuer accessTokenIssuer,
+            RefreshTokenIssuer refreshTokenIssuer,
+            LoginSessionProperties sessionProperties,
+            EmailVerificationService emailverificationService,
+            Clock clock) {
         this.authAccountRepository = authAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.passwordCredentialRepository = passwordCredentialRepository;
         this.eventPublisher = eventPublisher;
+        this.roleRepository = roleRepository;
+        this.accountRoleRepository = accountRoleRepository;
+        this.loginSessionRepository = loginSessionRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.accessTokenIssuer = accessTokenIssuer;
+        this.refreshTokenIssuer = refreshTokenIssuer;
+        this.sessionProperties = sessionProperties;
+        this.emailverificationService = emailverificationService;
+        this.clock = clock;
     }
 
     @Override
@@ -54,13 +106,25 @@ public class AuthServiceImpl implements AuthService {
 
             AuthAccount savedAccount = authAccountRepository.saveAndFlush(account);
 
+            Instant registeredAt = Instant.now();
+
             PasswordCredential credential = new PasswordCredential(
                     savedAccount.getId(),
                     passwordEncoder.encode(request.password()),
-                    Instant.now()
+                    registeredAt
             );
 
             passwordCredentialRepository.saveAndFlush(credential);
+
+            Role userRole = roleRepository.findByCode(RoleCode.USER)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Default USER role has not been initialized"));
+
+            accountRoleRepository.saveAndFlush(
+                    new AccountRole(savedAccount.getId(),
+                            userRole.getId(),
+                            registeredAt)
+            );
 
             eventPublisher.publishEvent(
               new AccountRegisteredEvent(
@@ -77,10 +141,189 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    @Override
+    @Transactional
+    public LoginView login(
+            LoginRequest request,
+            LoginClientContext loginClientContext
+    ) {
 
+        AuthAccount account = authenticate(request);
+
+        ensureAccountCanLogin(account);
+
+        Set<RoleCode> roles = accountRoleRepository.findRoleCodesByAccountId(account.getId());
+
+        if (roles.isEmpty()) {
+            throw new IllegalStateException("Account does not have any role" + account.getId());
+
+        }
+
+        Instant issuedAt = clock.instant();
+        Instant sessionExpiresAt = issuedAt.plus(sessionProperties.ttl());
+        LoginSession session = loginSessionRepository.saveAndFlush(
+                new LoginSession(
+                        account.getId(),
+                        issuedAt,
+                        sessionExpiresAt,
+                        loginClientContext.userAgent(),
+                        loginClientContext.ipAddress()
+                ));
+
+        IssuedRefreshToken issuedRefreshToken = refreshTokenIssuer.issue(
+                session.getId(),
+                issuedAt,
+                sessionExpiresAt
+        );
+
+        refreshTokenRepository.saveAndFlush(issuedRefreshToken.refreshToken());
+
+        IssuedAccessToken issuedAccessToken = accessTokenIssuer.issue(
+                account.getId(),
+                session.getId(),
+                roles,
+                issuedAt
+        );
+
+        long expiresInSeconds = Duration.between(issuedAt, issuedAccessToken.expiresAt()).toSeconds();
+
+        return new LoginView(
+                issuedAccessToken.value(),
+                issuedRefreshToken.value(),
+                "Bearer",
+                expiresInSeconds,
+                sessionExpiresAt
+        );
+    }
+
+    @Override
+    @Transactional
+    public LoginView refresh(RefreshTokenRequest request) {
+        Instant refreshedAt = clock.instant();
+
+        String tokenHash = refreshTokenIssuer.hash(request.refreshToken());
+
+        RefreshToken currentToken = refreshTokenRepository
+                .findByTokenHashForUpdate(tokenHash)
+                .orElseThrow(this::invalidRefreshToken);
+
+        if(!currentToken.isUsable(refreshedAt)) {
+            throw invalidRefreshToken();
+        }
+
+        LoginSession session = loginSessionRepository
+                .findByIdForUpdate(currentToken.getSessionId())
+                .orElseThrow(this::invalidRefreshToken);
+
+        if (!session.isActive(refreshedAt)) {
+            throw invalidRefreshToken();
+        }
+
+        AuthAccount account = authAccountRepository
+                .findById(session.getAccountId())
+                .orElseThrow(this::invalidRefreshToken);
+
+        if (!account.isEnabled()){
+            throw new AuthException(AuthErrorCode.ACCOUNT_DISABLED);
+        }
+
+        Set<RoleCode> roles = accountRoleRepository.findRoleCodesByAccountId(account.getId());
+        if (roles.isEmpty()) {
+            throw new IllegalStateException("Account does not have any role" + account.getId());
+        }
+
+        IssuedRefreshToken issuedRefreshToken = refreshTokenIssuer.issue(
+                session.getId(),
+                refreshedAt,
+                session.getExpiresAt()
+        );
+
+        RefreshToken replacementToken = refreshTokenRepository.saveAndFlush(issuedRefreshToken.refreshToken());
+
+        currentToken.markUsed(
+                refreshedAt,
+                replacementToken.getId()
+        );
+
+        session.markUsed(refreshedAt);
+
+        IssuedAccessToken issuedAccessToken = accessTokenIssuer.issue(
+                account.getId(),
+                session.getId(),
+                roles,
+                refreshedAt
+        );
+
+        long expiresInSeconds = Duration.between(
+                refreshedAt,
+                issuedAccessToken.expiresAt()
+        ).toSeconds();
+
+        return new LoginView(
+                issuedAccessToken.value(),
+                issuedRefreshToken.value(),
+                "Bearer",
+                expiresInSeconds,
+                replacementToken.getExpiresAt()
+        );
+    }
 
     // --- helper ---
-    private String normalizeIdentifier(String identifier){
+    private AuthException invalidRefreshToken() {
+        return new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+    }
+    private AuthAccount authenticate(LoginRequest request){
+        String identifier = normalizeIdentifier(request.identifier());
+
+        Optional<AuthAccount> account = authAccountRepository.findByUsernameOrEmailOrPhoneNumber(
+                identifier,
+                identifier,
+                identifier
+        );
+
+        if (account.isEmpty()) {
+            performDummyPasswordCheck(request.password());
+            throw invalidCredentials();
+        }
+
+        Optional<PasswordCredential> credential = passwordCredentialRepository.findById(account.orElseThrow().getId());
+
+        if(credential.isEmpty()){
+            performDummyPasswordCheck(request.password());
+            throw invalidCredentials();
+        }
+
+        boolean passwordMatches = passwordEncoder.matches(
+                request.password(),
+                credential.orElseThrow().getPasswordHash()
+        );
+
+        if(!passwordMatches) throw invalidCredentials();
+
+        return account.orElseThrow();
+    }
+
+    private void ensureAccountCanLogin(AuthAccount account){
+        if(account.getEmail() != null && account.getEmailVerifiedAt() == null){
+            emailverificationService.resend(account.getEmail());
+
+            throw new AuthException(AuthErrorCode.EMAIL_VERIFICATION_REQUIRED);
+        }
+
+        if(!account.isEnabled()){
+            throw new AuthException(AuthErrorCode.ACCOUNT_DISABLED);
+        }
+    }
+
+    private void performDummyPasswordCheck(String rawPassword) {
+        passwordEncoder.matches(rawPassword, DUMMY_PASSWORD_HASH);
+    }
+
+    private AuthException invalidCredentials(){
+        return new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
+    }
+
+    private static String normalizeIdentifier(String identifier){
         if(identifier == null) return null;
 
         String normalized = identifier.strip();

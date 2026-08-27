@@ -27,4 +27,11 @@ public interface AuthAccountRepository extends JpaRepository<AuthAccount, UUID> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select account from AuthAccount account where account.id = :accountId")
     Optional<AuthAccount> findByIdForUpdate(@Param("accountId") UUID accountId);
+
+    Optional<AuthAccount> findByUsernameOrEmailOrPhoneNumber(
+            String username,
+            String email,
+            String phoneNumber
+    );
+
 }
