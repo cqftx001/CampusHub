@@ -1,3 +1,4 @@
+com/campushub/shared/security/AuthenticatedAccount.class
 com/campushub/shared/error/CommonErrorCode.class
 com/campushub/shared/utils/RequestUtils.class
 com/campushub/shared/error/ErrorCode.class

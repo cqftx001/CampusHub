@@ -94,6 +94,11 @@ public enum AuthErrorCode implements ErrorCode {
             HttpStatus.UNAUTHORIZED
     ),
 
+    SESSION_REGISTRY_UNAVAILABLE(
+            "AUTH_1016",
+            "Authentication session is temporarily unavailable",
+            HttpStatus.SERVICE_UNAVAILABLE
+    ),
 
     ;
 

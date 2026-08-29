@@ -74,6 +74,9 @@ class JwtAccessTokenTest {
         assertThat(parsedToken.sessionId())
                 .isEqualTo(sessionId);
 
+        assertThat(parsedToken.tokenId())
+                .isEqualTo(issuedToken.tokenId());
+
         assertThat(parsedToken.roles())
                 .containsExactlyInAnyOrder(
                         RoleCode.USER,
@@ -81,7 +84,9 @@ class JwtAccessTokenTest {
                 );
 
         assertThat(issuedToken.expiresAt())
-                .isEqualTo(ISSUED_AT.plus(Duration.ofMinutes(15)));
+                .isEqualTo(
+                        ISSUED_AT.plus(Duration.ofMinutes(15))
+                );
     }
 
     @Test

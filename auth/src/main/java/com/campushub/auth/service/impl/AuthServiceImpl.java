@@ -12,10 +12,7 @@ import com.campushub.auth.event.AccountRegisteredEvent;
 import com.campushub.auth.repository.*;
 import com.campushub.auth.service.AuthService;
 import com.campushub.auth.service.EmailVerificationService;
-import com.campushub.auth.token.IssuedAccessToken;
-import com.campushub.auth.token.IssuedRefreshToken;
-import com.campushub.auth.token.JwtAccessTokenIssuer;
-import com.campushub.auth.token.RefreshTokenIssuer;
+import com.campushub.auth.token.*;
 import com.campushub.auth.vo.CurrentAccountView;
 import com.campushub.auth.vo.LoginView;
 import com.campushub.auth.vo.RegisterAccountView;
@@ -58,6 +55,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenIssuer refreshTokenIssuer;
     private final LoginSessionProperties sessionProperties;
     private final EmailVerificationService emailverificationService;
+    private final AccessTokenRegistry registry;
     private final Clock clock;
 
     public AuthServiceImpl(
@@ -73,6 +71,7 @@ public class AuthServiceImpl implements AuthService {
             RefreshTokenIssuer refreshTokenIssuer,
             LoginSessionProperties sessionProperties,
             EmailVerificationService emailverificationService,
+            AccessTokenRegistry registry,
             Clock clock) {
         this.authAccountRepository = authAccountRepository;
         this.passwordEncoder = passwordEncoder;
@@ -86,6 +85,7 @@ public class AuthServiceImpl implements AuthService {
         this.refreshTokenIssuer = refreshTokenIssuer;
         this.sessionProperties = sessionProperties;
         this.emailverificationService = emailverificationService;
+        this.registry = registry;
         this.clock = clock;
     }
 
@@ -187,7 +187,17 @@ public class AuthServiceImpl implements AuthService {
                 issuedAt
         );
 
-        long expiresInSeconds = Duration.between(issuedAt, issuedAccessToken.expiresAt()).toSeconds();
+        registry.register(
+                account.getId(),
+                session.getId(),
+                issuedAccessToken.tokenId(),
+                sessionExpiresAt
+        );
+
+        long expiresInSeconds = Duration.between(
+                issuedAt,
+                issuedAccessToken.expiresAt()
+        ).toSeconds();
 
         return new LoginView(
                 issuedAccessToken.value(),
@@ -205,9 +215,7 @@ public class AuthServiceImpl implements AuthService {
 
         String tokenHash = refreshTokenIssuer.hash(request.refreshToken());
 
-        /**
-         * 先锁定session 避免deadlock
-         */
+        //先锁定session 避免deadlock
         UUID sessionId = refreshTokenRepository
                 .findSessionIdByTokenHash(tokenHash)
                 .orElseThrow(this::invalidRefreshToken);
@@ -263,6 +271,17 @@ public class AuthServiceImpl implements AuthService {
                 refreshedAt
         );
 
+        boolean accessTokenRotated = registry.rotate(
+                account.getId(),
+                session.getId(),
+                issuedAccessToken.tokenId(),
+                session.getExpiresAt()
+        );
+
+        if (!accessTokenRotated) {
+            throw invalidRefreshToken();
+        }
+
         long expiresInSeconds = Duration.between(
                 refreshedAt,
                 issuedAccessToken.expiresAt()
@@ -298,7 +317,7 @@ public class AuthServiceImpl implements AuthService {
     /**
      * 获取当前用户信息
      * @param accountId
-     * @return
+     * @return CurrentAccountView
      */
     @Override
     public CurrentAccountView getCurrentAccount(UUID accountId) {

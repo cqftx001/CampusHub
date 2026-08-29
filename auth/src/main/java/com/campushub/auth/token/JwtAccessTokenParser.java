@@ -53,9 +53,10 @@ public class JwtAccessTokenParser {
 
             UUID accountId = UUID.fromString(requireText(claims.getSubject()));
             UUID sessionId = UUID.fromString(requireText(claims.get(SESSION_ID_CLAIM)));
+            UUID tokenId = UUID.fromString(requireText(claims.getId()));
             Set<RoleCode> roles = parseRoles(claims);
 
-            return new ParsedAccessToken(accountId, sessionId, roles);
+            return new ParsedAccessToken(accountId, sessionId, tokenId, roles);
         } catch (JwtException | IllegalArgumentException e) {
             throw invalidToken();
         }

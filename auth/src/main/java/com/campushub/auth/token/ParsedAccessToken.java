@@ -9,12 +9,14 @@ import java.util.UUID;
 public record ParsedAccessToken(
         UUID accountId,
         UUID sessionId,
+        UUID tokenId,
         Set<RoleCode> roles
 ) {
 
     public ParsedAccessToken {
         Objects.requireNonNull(accountId);
         Objects.requireNonNull(sessionId);
+        Objects.requireNonNull(tokenId);
         Objects.requireNonNull(roles);
 
         roles = Set.copyOf(roles);

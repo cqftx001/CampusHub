@@ -17,6 +17,8 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import com.campushub.auth.error.AuthErrorCode;
+import com.campushub.auth.token.AccessTokenRegistry;
 
 import java.io.IOException;
 import java.util.List;
@@ -29,13 +31,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
     private final JwtAccessTokenParser jwtAccessTokenParser;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final AccessTokenRegistry accessTokenRegistry;
 
     public JwtAuthenticationFilter(
             JwtAccessTokenParser jwtAccessTokenParser,
-            RestAuthenticationEntryPoint restAuthenticationEntryPoint
-    ){
+            RestAuthenticationEntryPoint restAuthenticationEntryPoint,
+            AccessTokenRegistry accessTokenRegistry){
         this.jwtAccessTokenParser = jwtAccessTokenParser;
         this.restAuthenticationEntryPoint = restAuthenticationEntryPoint;
+        this.accessTokenRegistry = accessTokenRegistry;
     }
 
     @Override
@@ -58,6 +62,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             ParsedAccessToken parsedAccessToken = jwtAccessTokenParser.parse(token);
+
+            boolean currentToken = accessTokenRegistry.isCurrent(
+                    parsedAccessToken.accountId(),
+                    parsedAccessToken.sessionId(),
+                    parsedAccessToken.tokenId()
+            );
+
+            if (!currentToken) {
+                throw new AuthException(AuthErrorCode.ACCESS_TOKEN_INVALID);
+            }
 
             Set<String> roleNames = parsedAccessToken
                     .roles()

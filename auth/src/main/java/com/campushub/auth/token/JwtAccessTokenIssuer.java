@@ -49,10 +49,12 @@ public class JwtAccessTokenIssuer {
                 .sorted()
                 .toList();
 
+        UUID tokenId = UUID.randomUUID();
+
         String token = Jwts.builder()
                 .issuer(jwtProperties.issuer())
                 .subject(accountId.toString())
-                .id(UUID.randomUUID().toString())
+                .id(tokenId.toString())
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(expiresAt))
                 .claim(SESSION_ID_CLAIM, sessionId.toString())
@@ -60,6 +62,6 @@ public class JwtAccessTokenIssuer {
                 .signWith(signingKey, Jwts.SIG.HS256)
                 .compact();
 
-        return new IssuedAccessToken(token, expiresAt);
+        return new IssuedAccessToken(token, tokenId, expiresAt);
     }
 }

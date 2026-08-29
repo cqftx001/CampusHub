@@ -25,6 +25,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import com.campushub.auth.token.AccessTokenRegistry;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -35,6 +38,7 @@ import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(
         classes = RefreshTokenIntegrationTest.TestApplication.class,
@@ -73,6 +77,9 @@ class RefreshTokenIntegrationTest {
     @MockBean
     private EmailVerificationService emailVerificationService;
 
+    @MockBean
+    private AccessTokenRegistry accessTokenRegistry;
+
     private final AuthService authService;
     private final AuthAccountRepository authAccountRepository;
     private final RoleRepository roleRepository;
@@ -105,6 +112,13 @@ class RefreshTokenIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        lenient().when(accessTokenRegistry.rotate(
+                any(UUID.class),
+                any(UUID.class),
+                any(UUID.class),
+                any(Instant.class)
+        )).thenReturn(true);
+
         refreshTokenRepository.deleteAll();
         loginSessionRepository.deleteAll();
         accountRoleRepository.deleteAll();
@@ -417,6 +431,41 @@ class RefreshTokenIntegrationTest {
         assertThat(refreshTokenRepository.count()).isEqualTo(1);
     }
 
+    @Test
+    void missingOnlineSessionRollsBackRefreshRotation() {
+        RefreshFixture fixture = createFixture();
+
+        when(accessTokenRegistry.rotate(
+                any(UUID.class),
+                any(UUID.class),
+                any(UUID.class),
+                any(Instant.class)
+        )).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.refresh(
+                new RefreshTokenRequest(
+                        fixture.rawToken()
+                )
+        ))
+                .isInstanceOf(AuthException.class)
+                .satisfies(exception -> assertThat(
+                        ((AuthException) exception).getErrorCode()
+                ).isEqualTo(
+                        AuthErrorCode.REFRESH_TOKEN_INVALID
+                ));
+
+        RefreshToken originalToken =
+                refreshTokenRepository
+                        .findById(fixture.refreshTokenId())
+                        .orElseThrow();
+
+        assertThat(originalToken.getStatus())
+                .isEqualTo(RefreshTokenStatus.ACTIVE);
+
+        assertThat(refreshTokenRepository.count())
+                .isEqualTo(1);
+    }
+
     private RefreshFixture createFixture(
             Instant issuedAt,
             Instant sessionExpiresAt
@@ -470,6 +519,7 @@ class RefreshTokenIntegrationTest {
                 sessionExpiresAt
         );
     }
+
 
     private record RefreshFixture(
             String rawToken,
