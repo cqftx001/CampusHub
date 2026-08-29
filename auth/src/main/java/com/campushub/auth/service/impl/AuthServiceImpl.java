@@ -16,6 +16,7 @@ import com.campushub.auth.token.IssuedAccessToken;
 import com.campushub.auth.token.IssuedRefreshToken;
 import com.campushub.auth.token.JwtAccessTokenIssuer;
 import com.campushub.auth.token.RefreshTokenIssuer;
+import com.campushub.auth.vo.CurrentAccountView;
 import com.campushub.auth.vo.LoginView;
 import com.campushub.auth.vo.RegisterAccountView;
 import org.springframework.context.ApplicationEventPublisher;
@@ -30,6 +31,7 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -203,19 +205,26 @@ public class AuthServiceImpl implements AuthService {
 
         String tokenHash = refreshTokenIssuer.hash(request.refreshToken());
 
+        /**
+         * 先锁定session 避免deadlock
+         */
+        UUID sessionId = refreshTokenRepository
+                .findSessionIdByTokenHash(tokenHash)
+                .orElseThrow(this::invalidRefreshToken);
+
+        LoginSession session = loginSessionRepository
+                .findByIdForUpdate(sessionId)
+                .orElseThrow(this::invalidRefreshToken);
+
+        if (!session.isActive(refreshedAt)) {
+            throw invalidRefreshToken();
+        }
+
         RefreshToken currentToken = refreshTokenRepository
                 .findByTokenHashForUpdate(tokenHash)
                 .orElseThrow(this::invalidRefreshToken);
 
-        if(!currentToken.isUsable(refreshedAt)) {
-            throw invalidRefreshToken();
-        }
-
-        LoginSession session = loginSessionRepository
-                .findByIdForUpdate(currentToken.getSessionId())
-                .orElseThrow(this::invalidRefreshToken);
-
-        if (!session.isActive(refreshedAt)) {
+        if (!currentToken.getSessionId().equals(sessionId) || !currentToken.isUsable(refreshedAt)) {
             throw invalidRefreshToken();
         }
 
@@ -268,10 +277,50 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
-    // --- helper ---
-    private AuthException invalidRefreshToken() {
-        return new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+    @Override
+    @Transactional
+    public void logout(UUID accountId, UUID sessionId) {
+        Instant revokedAt = clock.instant();
+        LoginSession session = loginSessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(this::invalidAccessToken);
+
+        if (!session.getAccountId().equals(accountId)) {
+            throw invalidAccessToken();
+        }
+
+        refreshTokenRepository
+                .findBySessionIdAndStatusForUpdate(sessionId, RefreshTokenStatus.ACTIVE)
+                .ifPresent(token -> token.revoke(revokedAt));
+
+        session.revoke(revokedAt);
     }
+
+    /**
+     * 获取当前用户信息
+     * @param accountId
+     * @return
+     */
+    @Override
+    public CurrentAccountView getCurrentAccount(UUID accountId) {
+        AuthAccount account = authAccountRepository
+                .findById(accountId)
+                .orElseThrow(() -> new AuthException(AuthErrorCode.ACCESS_TOKEN_INVALID));
+
+        if(!account.isEnabled()){
+            throw new AuthException(AuthErrorCode.ACCOUNT_DISABLED);
+        }
+
+        return new CurrentAccountView(
+                account.getId(),
+                account.getUsername(),
+                account.getEmail(),
+                account.getPhoneNumber(),
+                account.getEmailVerifiedAt() != null,
+                account.getPhoneVerifiedAt() != null
+        );
+    }
+
+    // --- helper ---
     private AuthAccount authenticate(LoginRequest request){
         String identifier = normalizeIdentifier(request.identifier());
 
@@ -319,10 +368,6 @@ public class AuthServiceImpl implements AuthService {
         passwordEncoder.matches(rawPassword, DUMMY_PASSWORD_HASH);
     }
 
-    private AuthException invalidCredentials(){
-        return new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
-    }
-
     private static String normalizeIdentifier(String identifier){
         if(identifier == null) return null;
 
@@ -339,4 +384,17 @@ public class AuthServiceImpl implements AuthService {
                 true
         );
     }
+
+    private AuthException invalidCredentials(){
+        return new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
+    }
+
+    private AuthException invalidRefreshToken() {
+        return new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+    }
+
+    private AuthException invalidAccessToken() {
+        return new AuthException(AuthErrorCode.ACCESS_TOKEN_INVALID);
+    }
+
 }

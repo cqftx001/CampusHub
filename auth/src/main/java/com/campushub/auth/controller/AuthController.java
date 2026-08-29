@@ -3,18 +3,20 @@ package com.campushub.auth.controller;
 import com.campushub.auth.dto.*;
 import com.campushub.auth.service.AuthService;
 import com.campushub.auth.service.EmailVerificationService;
+import com.campushub.auth.vo.CurrentAccountView;
 import com.campushub.auth.vo.LoginView;
 import com.campushub.auth.vo.RegisterAccountView;
 import com.campushub.shared.base.ResponseResult;
+import com.campushub.shared.security.AuthenticatedAccount;
 import com.campushub.shared.utils.RequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.apache.coyote.Request;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -95,6 +97,20 @@ public class AuthController {
                 .body(ResponseResult.success(loginView, requestId));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<ResponseResult<Void>> logout(
+            @AuthenticationPrincipal AuthenticatedAccount account,
+            HttpServletRequest servletRequest
+    ){
+        String requestId = RequestUtils.getOrCreateRequestId(servletRequest);
+
+        authService.logout(account.accountId(), account.sessionId());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ResponseResult.success(requestId));
+    }
+
     @PostMapping("/token/refresh")
     public ResponseEntity<ResponseResult<LoginView>> refreshToken(
         @Valid @RequestBody RefreshTokenRequest request,
@@ -107,6 +123,19 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ResponseResult.success(view, requestId));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ResponseResult<CurrentAccountView>> currentAccount(
+            @AuthenticationPrincipal AuthenticatedAccount authenticatedAccount,
+            HttpServletRequest request
+    ) {
+        String requestId = RequestUtils.getOrCreateRequestId(request);
+        CurrentAccountView accountView = authService.getCurrentAccount(authenticatedAccount.accountId());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ResponseResult.success(accountView, requestId));
     }
 
 

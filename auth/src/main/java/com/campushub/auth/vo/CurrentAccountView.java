@@ -1,5 +1,6 @@
 package com.campushub.auth.vo;
 
+import java.util.Objects;
 import java.util.UUID;
 
 public record CurrentAccountView(
@@ -10,4 +11,10 @@ public record CurrentAccountView(
         boolean emailVerified,
         boolean phoneVerified
 ) {
+
+    public CurrentAccountView {
+        Objects.requireNonNull(accountId);
+        Objects.requireNonNull(username);
+        Objects.requireNonNull(email);
+    }
 }
