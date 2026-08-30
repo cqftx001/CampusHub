@@ -11,7 +11,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EnableConfigurationProperties({
         EmailVerificationProperties.class,
         JwtProperties.class,
-        LoginSessionProperties.class
+        LoginSessionProperties.class,
+        LoginRateLimitProperties.class
 })
 public class AuthModuleConfiguration {
 

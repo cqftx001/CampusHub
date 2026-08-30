@@ -42,6 +42,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.accessTokenRegistry = accessTokenRegistry;
     }
 
+    private static final Set<String>
+            PUBLIC_POST_PATHS = Set.of(
+            "/api/auth/register",
+            "/api/auth/login",
+            "/api/auth/email-verification/confirm",
+            "/api/auth/email-verification/resend",
+            "/api/auth/token/refresh"
+    );
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return "POST".equalsIgnoreCase(request.getMethod()) && PUBLIC_POST_PATHS.contains(request.getServletPath());
+    }
+
     @Override
     protected void doFilterInternal(
         HttpServletRequest request,

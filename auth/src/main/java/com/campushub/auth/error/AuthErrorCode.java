@@ -100,7 +100,16 @@ public enum AuthErrorCode implements ErrorCode {
             HttpStatus.SERVICE_UNAVAILABLE
     ),
 
-    ;
+    LOGIN_RATE_LIMITED(
+        "AUTH_1017",
+        "Too many failed login attempts. Try again later",
+        HttpStatus.TOO_MANY_REQUESTS
+    ),
+
+    LOGIN_PROTECTION_UNAVAILABLE(
+            "AUTH_1018",
+            "Login protection is temporarily unavailable",
+            HttpStatus.SERVICE_UNAVAILABLE);
 
 
     private String code;

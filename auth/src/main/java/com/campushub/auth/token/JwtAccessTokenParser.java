@@ -32,6 +32,7 @@ public class JwtAccessTokenParser {
         this.jwtParser = Jwts.parser()
                 .verifyWith(signingKeyProvider.signingKey())
                 .requireIssuer(properties.issuer())
+                .requireAudience(properties.audience())
                 .clock(() -> Date.from(clock.instant()))
                 .clockSkewSeconds(CLOCK_SKEW_SECONDS)
                 .build();

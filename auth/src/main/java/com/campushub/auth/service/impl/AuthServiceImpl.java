@@ -10,6 +10,7 @@ import com.campushub.auth.error.AuthErrorCode;
 import com.campushub.auth.error.AuthException;
 import com.campushub.auth.event.AccountRegisteredEvent;
 import com.campushub.auth.repository.*;
+import com.campushub.auth.security.LoginAttemptLimiter;
 import com.campushub.auth.service.AuthService;
 import com.campushub.auth.service.EmailVerificationService;
 import com.campushub.auth.token.*;
@@ -58,6 +59,8 @@ public class AuthServiceImpl implements AuthService {
     private final LoginSessionProperties sessionProperties;
     private final EmailVerificationService emailverificationService;
     private final AccessTokenRegistry registry;
+    private final LoginAttemptLimiter loginAttemptLimiter;
+
     private final Clock clock;
 
     public AuthServiceImpl(
@@ -74,6 +77,7 @@ public class AuthServiceImpl implements AuthService {
             LoginSessionProperties sessionProperties,
             EmailVerificationService emailverificationService,
             AccessTokenRegistry registry,
+            LoginAttemptLimiter loginAttemptLimiter,
             Clock clock) {
         this.authAccountRepository = authAccountRepository;
         this.passwordEncoder = passwordEncoder;
@@ -88,6 +92,7 @@ public class AuthServiceImpl implements AuthService {
         this.sessionProperties = sessionProperties;
         this.emailverificationService = emailverificationService;
         this.registry = registry;
+        this.loginAttemptLimiter = loginAttemptLimiter;
         this.clock = clock;
     }
 
@@ -152,7 +157,22 @@ public class AuthServiceImpl implements AuthService {
             LoginClientContext loginClientContext
     ) {
 
-        AuthAccount account = authenticate(request);
+        loginAttemptLimiter.assertAllowed(request.identifier(), loginClientContext.ipAddress());
+
+        AuthAccount account;
+
+        try {
+            account = authenticate(request);
+        } catch (AuthException e) {
+            // Add limit record as invalid credentials
+            if(e.getErrorCode() == AuthErrorCode.INVALID_CREDENTIALS) {
+                loginAttemptLimiter.recordFailure(request.identifier(), loginClientContext.ipAddress());
+            }
+            throw e;
+        }
+
+        // Password Correct -> clear rate limit records
+        loginAttemptLimiter.clearIdentifierFailures(request.identifier());
 
         ensureAccountCanLogin(account);
 
@@ -182,12 +202,14 @@ public class AuthServiceImpl implements AuthService {
 
         refreshTokenRepository.saveAndFlush(issuedRefreshToken.refreshToken());
 
-        IssuedAccessToken issuedAccessToken = accessTokenIssuer.issue(
-                account.getId(),
-                session.getId(),
-                roles,
-                issuedAt
-        );
+        IssuedAccessToken issuedAccessToken =
+                accessTokenIssuer.issue(
+                        account.getId(),
+                        session.getId(),
+                        roles,
+                        issuedAt,
+                        sessionExpiresAt
+                );
 
         registry.register(
                 account.getId(),
@@ -283,12 +305,14 @@ public class AuthServiceImpl implements AuthService {
 
         session.markUsed(refreshedAt);
 
-        IssuedAccessToken issuedAccessToken = accessTokenIssuer.issue(
-                account.getId(),
-                session.getId(),
-                roles,
-                refreshedAt
-        );
+        IssuedAccessToken issuedAccessToken =
+                accessTokenIssuer.issue(
+                        account.getId(),
+                        session.getId(),
+                        roles,
+                        refreshedAt,
+                        session.getExpiresAt()
+                );
 
         boolean accessTokenRotated = registry.rotate(
                 account.getId(),
@@ -316,6 +340,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     // 不会因为异常把安全状态回滚成 ACTIVE；
+    @Override
     @Transactional(
             noRollbackFor =
                     SessionRegistryRevocationFailedException.class
@@ -367,6 +392,7 @@ public class AuthServiceImpl implements AuthService {
                 account.getPhoneVerifiedAt() != null
         );
     }
+
 
     // --- helper ---
     private void revokeCompromisedSession(

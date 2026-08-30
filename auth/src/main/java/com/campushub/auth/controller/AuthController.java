@@ -138,5 +138,10 @@ public class AuthController {
                 .body(ResponseResult.success(accountView, requestId));
     }
 
+    /**
+     * POST /api/auth/password-reset/request
+     * POST /api/auth/password-reset/confirm
+     * POST /api/auth/password/change
+     */
 
 }

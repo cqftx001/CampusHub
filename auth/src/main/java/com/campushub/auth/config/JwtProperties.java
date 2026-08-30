@@ -14,6 +14,9 @@ public record JwtProperties(
         String issuer,
 
         @NotBlank
+        String audience,
+
+        @NotBlank
         String secret,
 
         @NotNull

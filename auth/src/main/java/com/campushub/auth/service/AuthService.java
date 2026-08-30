@@ -24,4 +24,6 @@ public interface AuthService {
     CurrentAccountView getCurrentAccount(UUID accountId);
 
     void logout(UUID accountId, UUID sessionId);
+
+    // void passwordChange(UUID accountId);
 }
