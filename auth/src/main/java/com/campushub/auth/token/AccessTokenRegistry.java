@@ -122,6 +122,29 @@ public class AccessTokenRegistry {
             throw registryUnavailable();
         }
     }
+
+    public boolean revoke(
+            UUID accountId,
+            UUID sessionId
+    ) {
+        Objects.requireNonNull(accountId);
+        Objects.requireNonNull(sessionId);
+
+        String accountPrefix = accountId + ":";
+
+        try {
+            Long result = stringRedisTemplate.execute(
+                    REVOKE_ACCESS_TOKEN_SCRIPT,
+                    List.of(sessionKey(sessionId)),
+                    accountPrefix
+            );
+
+            return Long.valueOf(1L).equals(result);
+        } catch (DataAccessException exception) {
+            throw registryUnavailable();
+        }
+    }
+
     // --- helper ---
     private static final DefaultRedisScript<Long>
             ROTATE_ACCESS_TOKEN_SCRIPT =
@@ -150,6 +173,26 @@ public class AccessTokenRegistry {
 
                 return 1
                 """, Long.class);
+
+    private static final DefaultRedisScript<Long>
+            REVOKE_ACCESS_TOKEN_SCRIPT =
+            new DefaultRedisScript<>("""
+            local current = redis.call('GET', KEYS[1])
+
+            if not current then
+                return 0
+            end
+
+            if string.sub(
+                current,
+                1,
+                string.len(ARGV[1])
+            ) ~= ARGV[1] then
+                return -1
+            end
+
+            return redis.call('DEL', KEYS[1])
+            """, Long.class);
 
     private String sessionKey(UUID sessionId) {
         return SESSION_KEY_PREFIX + sessionId.toString();

@@ -21,6 +21,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.campushub.auth.error.RefreshTokenReuseDetectedException;
+import com.campushub.auth.error.SessionRegistryRevocationFailedException;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -209,7 +211,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
+    @Transactional(
+            noRollbackFor = {
+                    RefreshTokenReuseDetectedException.class,
+                    SessionRegistryRevocationFailedException.class
+            })
     public LoginView refresh(RefreshTokenRequest request) {
         Instant refreshedAt = clock.instant();
 
@@ -232,7 +238,20 @@ public class AuthServiceImpl implements AuthService {
                 .findByTokenHashForUpdate(tokenHash)
                 .orElseThrow(this::invalidRefreshToken);
 
-        if (!currentToken.getSessionId().equals(sessionId) || !currentToken.isUsable(refreshedAt)) {
+        if (!currentToken.getSessionId().equals(sessionId)) {
+            throw invalidRefreshToken();
+        }
+
+        if (currentToken.getStatus() == RefreshTokenStatus.USED) {
+            revokeCompromisedSession(
+                    session,
+                    refreshedAt
+            );
+
+            throw new RefreshTokenReuseDetectedException();
+        }
+
+        if (!currentToken.isUsable(refreshedAt)) {
             throw invalidRefreshToken();
         }
 
@@ -296,11 +315,16 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
-    @Override
-    @Transactional
+    // 不会因为异常把安全状态回滚成 ACTIVE；
+    @Transactional(
+            noRollbackFor =
+                    SessionRegistryRevocationFailedException.class
+    )
     public void logout(UUID accountId, UUID sessionId) {
         Instant revokedAt = clock.instant();
-        LoginSession session = loginSessionRepository.findByIdForUpdate(sessionId)
+
+        LoginSession session = loginSessionRepository
+                .findByIdForUpdate(sessionId)
                 .orElseThrow(this::invalidAccessToken);
 
         if (!session.getAccountId().equals(accountId)) {
@@ -308,10 +332,15 @@ public class AuthServiceImpl implements AuthService {
         }
 
         refreshTokenRepository
-                .findBySessionIdAndStatusForUpdate(sessionId, RefreshTokenStatus.ACTIVE)
+                .findBySessionIdAndStatusForUpdate(
+                        sessionId,
+                        RefreshTokenStatus.ACTIVE
+                )
                 .ifPresent(token -> token.revoke(revokedAt));
 
         session.revoke(revokedAt);
+
+        revokeOnlineSession(accountId, sessionId);
     }
 
     /**
@@ -340,6 +369,38 @@ public class AuthServiceImpl implements AuthService {
     }
 
     // --- helper ---
+    private void revokeCompromisedSession(
+            LoginSession session,
+            Instant revokedAt
+    ) {
+        refreshTokenRepository
+                .findBySessionIdAndStatusForUpdate(
+                        session.getId(),
+                        RefreshTokenStatus.ACTIVE
+                )
+                .ifPresent(token -> token.revoke(revokedAt));
+
+        session.revoke(revokedAt);
+
+        revokeOnlineSession(session.getAccountId(), session.getId());
+    }
+
+    private void revokeOnlineSession(
+            UUID accountId,
+            UUID sessionId
+    ) {
+        try {
+            registry.revoke(accountId, sessionId);
+        } catch (AuthException exception) {
+            if (exception.getErrorCode()
+                    == AuthErrorCode.SESSION_REGISTRY_UNAVAILABLE) {
+                throw new SessionRegistryRevocationFailedException();
+            }
+
+            throw exception;
+        }
+    }
+
     private AuthAccount authenticate(LoginRequest request){
         String identifier = normalizeIdentifier(request.identifier());
 
