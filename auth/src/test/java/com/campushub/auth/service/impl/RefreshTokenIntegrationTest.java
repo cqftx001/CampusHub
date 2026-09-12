@@ -18,6 +18,7 @@ import com.campushub.auth.repository.AuthAccountRepository;
 import com.campushub.auth.repository.LoginSessionRepository;
 import com.campushub.auth.repository.RefreshTokenRepository;
 import com.campushub.auth.repository.RoleRepository;
+import com.campushub.auth.security.LoginAttemptLimiter;
 import com.campushub.auth.service.AuthService;
 import com.campushub.auth.service.EmailVerificationService;
 import com.campushub.auth.token.AccessTokenRegistry;
@@ -25,6 +26,9 @@ import com.campushub.auth.token.IssuedRefreshToken;
 import com.campushub.auth.token.JwtAccessTokenIssuer;
 import com.campushub.auth.token.JwtSigningKeyProvider;
 import com.campushub.auth.token.RefreshTokenIssuer;
+import com.campushub.auth.utils.AuthInputNormalizer;
+import com.campushub.auth.utils.SecureTokenGenerator;
+import com.campushub.auth.utils.Sha256Hasher;
 import com.campushub.auth.vo.LoginView;
 import com.campushub.shared.error.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +41,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.time.Clock;
 import java.time.Instant;
@@ -104,10 +109,17 @@ class RefreshTokenIntegrationTest {
             AuthServiceImpl.class,
             RefreshTokenIssuer.class,
             JwtAccessTokenIssuer.class,
-            JwtSigningKeyProvider.class
+            JwtSigningKeyProvider.class,
+            SecureTokenGenerator.class,
+            Sha256Hasher.class,
+            AuthInputNormalizer.class
     })
+
     static class TestApplication {
     }
+
+    @MockBean
+    private LoginAttemptLimiter loginAttemptLimiter;
 
     @MockBean
     private EmailVerificationService emailVerificationService;

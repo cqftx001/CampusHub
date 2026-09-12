@@ -44,6 +44,21 @@ public class PasswordCredential {
                 Objects.requireNonNull(passwordChangedAt);
     }
 
+    public void changePassword(
+            String newPasswordHash,
+            Instant changedAt
+    ) {
+        String requiredHash = Objects.requireNonNull(newPasswordHash);
+        Instant requiredChangedAt = Objects.requireNonNull(changedAt);
+
+        if(requiredChangedAt.isBefore(passwordChangedAt)) {
+            throw new IllegalArgumentException("Password change time cannot move backwards");
+        }
+
+        this.passwordHash = requiredHash;
+        this.passwordChangedAt = requiredChangedAt;
+    }
+
     public UUID getAccountId() {
         return accountId;
     }

@@ -17,6 +17,7 @@ import com.campushub.auth.token.*;
 import com.campushub.auth.vo.CurrentAccountView;
 import com.campushub.auth.vo.LoginView;
 import com.campushub.auth.vo.RegisterAccountView;
+import com.campushub.auth.utils.AuthInputNormalizer;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,7 +29,6 @@ import com.campushub.auth.error.SessionRegistryRevocationFailedException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -60,6 +60,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailVerificationService emailverificationService;
     private final AccessTokenRegistry registry;
     private final LoginAttemptLimiter loginAttemptLimiter;
+    private final AuthInputNormalizer inputNormalizer;
 
     private final Clock clock;
 
@@ -78,6 +79,7 @@ public class AuthServiceImpl implements AuthService {
             EmailVerificationService emailverificationService,
             AccessTokenRegistry registry,
             LoginAttemptLimiter loginAttemptLimiter,
+            AuthInputNormalizer inputNormalizer,
             Clock clock) {
         this.authAccountRepository = authAccountRepository;
         this.passwordEncoder = passwordEncoder;
@@ -93,14 +95,15 @@ public class AuthServiceImpl implements AuthService {
         this.emailverificationService = emailverificationService;
         this.registry = registry;
         this.loginAttemptLimiter = loginAttemptLimiter;
+        this.inputNormalizer = inputNormalizer;
         this.clock = clock;
     }
 
     @Override
     @Transactional
     public RegisterAccountView register(RegisterRequest request) {
-        String username = normalizeIdentifier(request.username());
-        String email = normalizeIdentifier(request.email());
+        String username = inputNormalizer.normalizeCaseInsensitive(request.username());
+        String email = inputNormalizer.normalizeCaseInsensitive(request.email());
 
         if(authAccountRepository.existsByUsername(username)) {
             throw new AuthException(AuthErrorCode.USERNAME_ALREADY_TAKEN);
@@ -428,7 +431,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthAccount authenticate(LoginRequest request){
-        String identifier = normalizeIdentifier(request.identifier());
+        String identifier = inputNormalizer.normalizeCaseInsensitive(request.identifier());
 
         Optional<AuthAccount> account = authAccountRepository.findByUsernameOrEmailOrPhoneNumber(
                 identifier,
@@ -441,7 +444,7 @@ public class AuthServiceImpl implements AuthService {
             throw invalidCredentials();
         }
 
-        Optional<PasswordCredential> credential = passwordCredentialRepository.findById(account.orElseThrow().getId());
+        Optional<PasswordCredential> credential = passwordCredentialRepository.findByIdForUpdate(account.orElseThrow().getId());
 
         if(credential.isEmpty()){
             performDummyPasswordCheck(request.password());
@@ -472,14 +475,6 @@ public class AuthServiceImpl implements AuthService {
 
     private void performDummyPasswordCheck(String rawPassword) {
         passwordEncoder.matches(rawPassword, DUMMY_PASSWORD_HASH);
-    }
-
-    private static String normalizeIdentifier(String identifier){
-        if(identifier == null) return null;
-
-        String normalized = identifier.strip();
-
-        return normalized.isEmpty() ? null : normalized.toLowerCase(Locale.ROOT);
     }
 
     private RegisterAccountView toRegisterView(AuthAccount account){

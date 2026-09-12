@@ -6,6 +6,9 @@ import com.campushub.auth.error.AuthErrorCode;
 import com.campushub.auth.error.AuthException;
 import com.campushub.auth.repository.AuthAccountRepository;
 import com.campushub.auth.service.EmailVerificationService;
+import com.campushub.auth.utils.AuthInputNormalizer;
+import com.campushub.auth.utils.SecureTokenGenerator;
+import com.campushub.auth.utils.Sha256Hasher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -44,7 +47,6 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     private static final String RESEND_KEY_PREFIX =
             "auth:email:verification:resend:";
 
-    private static final int TOKEN_BYTE_LENGTH = 32;
     private static final int MAX_TOKEN_LENGTH = 128;
 
     private static final DefaultRedisScript<Long> REPLACE_TOKEN_SCRIPT =
@@ -91,23 +93,35 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     private final StringRedisTemplate stringRedisTemplate;
     private final JavaMailSender javaMailSender;
     private final EmailVerificationProperties emailVerificationProperties;
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final SecureTokenGenerator tokenGenerator;
+    private final Sha256Hasher sha256Hasher;
+    private final AuthInputNormalizer inputNormalizer;
 
     public EmailVerificationServiceImpl(
             AuthAccountRepository authAccountRepository,
             StringRedisTemplate stringRedisTemplate,
             JavaMailSender javaMailSender,
-            EmailVerificationProperties emailVerificationProperties
+            EmailVerificationProperties emailVerificationProperties,
+            SecureTokenGenerator tokenGenerator,
+            Sha256Hasher sha256Hasher,
+            AuthInputNormalizer inputNormalizer
     ) {
-        this.authAccountRepository = authAccountRepository;
-        this.stringRedisTemplate = stringRedisTemplate;
-        this.javaMailSender = javaMailSender;
-        this.emailVerificationProperties = emailVerificationProperties;
+        this.authAccountRepository =
+                authAccountRepository;
+        this.stringRedisTemplate =
+                stringRedisTemplate;
+        this.javaMailSender =
+                javaMailSender;
+        this.emailVerificationProperties =
+                emailVerificationProperties;
+        this.tokenGenerator = tokenGenerator;
+        this.sha256Hasher = sha256Hasher;
+        this.inputNormalizer = inputNormalizer;
     }
 
     @Override
     public void sendInitialVerification(UUID accountId, String email) {
-        String normalizedEmail = normalizeEmail(email);
+        String normalizedEmail = inputNormalizer.normalizeCaseInsensitive(email);
         if (accountId == null || normalizedEmail == null) {
             return;
         }
@@ -115,7 +129,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         Optional<AuthAccount> account = authAccountRepository.findById(accountId);
         if (account.isEmpty()
                 || account.get().getEmailVerifiedAt() != null
-                || !normalizedEmail.equals(normalizeEmail(account.get().getEmail()))) {
+                || !normalizedEmail.equals(inputNormalizer.normalizeCaseInsensitive(account.get().getEmail()))) {
             return;
         }
 
@@ -146,13 +160,13 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
     @Override
     public void resend(String email) {
-        String normalizedEmail = normalizeEmail(email);
+        String normalizedEmail = inputNormalizer.normalizeCaseInsensitive(email);
         if (normalizedEmail == null) {
             return;
         }
 
         String cooldownLease = UUID.randomUUID().toString();
-        String cooldownKey = RESEND_KEY_PREFIX + sha256(normalizedEmail);
+        String cooldownKey = RESEND_KEY_PREFIX + sha256Hasher.hash(normalizedEmail);
         if (!tryAcquireCooldown(cooldownKey, cooldownLease)) {
             return;
         }
@@ -182,8 +196,8 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     // --- helper ---
 
     private IssuedToken replaceCurrentToken(UUID accountId) {
-        String rawToken = generateToken();
-        String tokenDigest = sha256(rawToken);
+        String rawToken = tokenGenerator.generate();
+        String tokenDigest = sha256Hasher.hash(rawToken);
         String accountKey = ACCOUNT_KEY_PREFIX + accountId;
         String tokenKey = TOKEN_KEY_PREFIX + tokenDigest;
 
@@ -212,7 +226,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
             return Optional.empty();
         }
 
-        String tokenDigest = sha256(normalizedToken);
+        String tokenDigest = sha256Hasher.hash(normalizedToken);
         String tokenKey = TOKEN_KEY_PREFIX + tokenDigest;
 
         try {
@@ -242,6 +256,22 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         } catch (DataAccessException exception) {
             throw verificationUnavailable();
         }
+    }
+
+    private String normalizeToken(String token) {
+        if (token == null) {
+            return null;
+        }
+
+        String normalized = token.strip();
+
+        if (normalized.isEmpty()
+                || normalized.length()
+                > MAX_TOKEN_LENGTH) {
+            return null;
+        }
+
+        return normalized;
     }
 
     private boolean tryAcquireCooldown(String cooldownKey, String cooldownLease) {
@@ -300,41 +330,6 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         message.setSubject("Verify your CampusHub email address");
         message.setText("Verify your email address using this link: " + verificationLink);
         javaMailSender.send(message);
-    }
-
-    private String generateToken() {
-        byte[] tokenBytes = new byte[TOKEN_BYTE_LENGTH];
-        secureRandom.nextBytes(tokenBytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
-    }
-
-    private String sha256(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is unavailable", exception);
-        }
-    }
-
-    private String normalizeEmail(String email) {
-        if (email == null) {
-            return null;
-        }
-        String normalized = email.strip().toLowerCase(Locale.ROOT);
-        return normalized.isEmpty() ? null : normalized;
-    }
-
-    private String normalizeToken(String token) {
-        if (token == null) {
-            return null;
-        }
-        String normalized = token.strip();
-        if (normalized.isEmpty() || normalized.length() > MAX_TOKEN_LENGTH) {
-            return null;
-        }
-        return normalized;
     }
 
     private AuthException verificationUnavailable() {

@@ -1,0 +1,12 @@
+campushub:
+  auth:
+    login-rate-limit:
+      window: 15m
+      identifier-max-failures: 5
+      ip-max-failures: 50
+
+    password-reset:
+      token-ttl: 15m
+      request-cooldown: 60s
+      reset-url: https://campushub.test/reset-password
+      from-address: no-reply@campushub.test

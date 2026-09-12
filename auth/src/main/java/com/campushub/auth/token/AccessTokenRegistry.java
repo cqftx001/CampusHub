@@ -21,6 +21,35 @@ public class AccessTokenRegistry {
     private final StringRedisTemplate stringRedisTemplate;
     private final Clock clock;
 
+    private static final DefaultRedisScript<Long>
+            REVOKE_ALL_ACCESS_TOKENS_SCRIPT =
+            new DefaultRedisScript<>("""
+                local accountPrefix = ARGV[1]
+
+                -- 先验证全部 key，防止删除到一半才发现不属于该账户
+                for _, key in ipairs(KEYS) do
+                    local current = redis.call('GET', key)
+
+                    if current
+                        and string.sub(
+                            current,
+                            1,
+                            string.len(accountPrefix)
+                        ) ~= accountPrefix then
+                        return -1
+                    end
+                end
+
+                local revoked = 0
+
+                for _, key in ipairs(KEYS) do
+                    revoked = revoked
+                        + redis.call('DEL', key)
+                end
+
+                return revoked
+                """, Long.class);
+
     public AccessTokenRegistry(
             StringRedisTemplate stringRedisTemplate,
             Clock clock
@@ -145,6 +174,46 @@ public class AccessTokenRegistry {
         }
     }
 
+    // 批量注销 Access Token
+    public long revokeAll(UUID accountId, List<UUID> sessionIds) {
+        Objects.requireNonNull(accountId);
+        Objects.requireNonNull(sessionIds);
+
+        List<String> keys = sessionIds.stream()
+                .map(Objects::requireNonNull)
+                .distinct()
+                .sorted()
+                .map(this::sessionKey)
+                .toList();
+
+        if (keys.isEmpty()) {
+            return 0L;
+        }
+
+        String accountPrefix = accountId + ":";
+
+        try {
+            Long result = stringRedisTemplate.execute(
+                    REVOKE_ALL_ACCESS_TOKENS_SCRIPT,
+                    keys,
+                    accountPrefix
+            );
+
+            if (result == null) {
+                throw registryUnavailable();
+            }
+
+            if (result < 0) {
+                throw new IllegalStateException(
+                        "Access-token registry account mismatch"
+                );
+            }
+
+            return result;
+        } catch (DataAccessException exception) {
+            throw registryUnavailable();
+        }
+    }
     // --- helper ---
     private static final DefaultRedisScript<Long>
             ROTATE_ACCESS_TOKEN_SCRIPT =

@@ -1,40 +1,38 @@
 package com.campushub.auth.token;
 
 import com.campushub.auth.domain.RefreshToken;
+import com.campushub.auth.utils.SecureTokenGenerator;
+import com.campushub.auth.utils.Sha256Hasher;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Objects;
 import java.util.UUID;
 
 @Component
 public class RefreshTokenIssuer {
 
-    private static final int TOKEN_BYTES = 32;
+    private final SecureTokenGenerator tokenGenerator;
+    private final Sha256Hasher sha256Hasher;
 
-    private final SecureRandom random = new SecureRandom();
+    public RefreshTokenIssuer(
+            SecureTokenGenerator tokenGenerator,
+            Sha256Hasher sha256Hasher
+    ) {
+        this.tokenGenerator = tokenGenerator;
+        this.sha256Hasher = sha256Hasher;
+    }
 
     public IssuedRefreshToken issue(
             UUID sessionId,
             Instant issuedAt,
             Instant expiresAt
-    ){
+    ) {
         Objects.requireNonNull(sessionId);
-        Objects.requireNonNull(expiresAt);
         Objects.requireNonNull(issuedAt);
+        Objects.requireNonNull(expiresAt);
 
-        byte[] tokenBytes = new byte[TOKEN_BYTES];
-        random.nextBytes(tokenBytes);
-
-        String rawToken = Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(tokenBytes);
+        String rawToken = tokenGenerator.generate();
 
         RefreshToken entity = new RefreshToken(
                 sessionId,
@@ -43,29 +41,18 @@ public class RefreshTokenIssuer {
                 expiresAt
         );
 
-        return new IssuedRefreshToken(rawToken, entity);
-    }
-
-    // --- helper ---
-    public String hash(String rawToken) {
-        String requiredToken = Objects.requireNonNull(
+        return new IssuedRefreshToken(
                 rawToken,
-                "rawToken must not be null"
+                entity
         );
-
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(
-                    requiredToken.getBytes(StandardCharsets.UTF_8)
-            );
-
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException(
-                    "SHA-256 is unavailable",
-                    exception
-            );
-        }
     }
 
+    public String hash(String rawToken) {
+        return sha256Hasher.hash(
+                Objects.requireNonNull(
+                        rawToken,
+                        "rawToken must not be null"
+                )
+        );
+    }
 }

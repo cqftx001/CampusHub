@@ -20,12 +20,18 @@ public interface LoginSessionRepository extends JpaRepository<LoginSession, UUID
             from LoginSession session
             where session.id = :sessionId
             """)
-    Optional<LoginSession> findByIdForUpdate(
-            @Param("sessionId") UUID sessionId
-    );
+    Optional<LoginSession> findByIdForUpdate(@Param("sessionId") UUID sessionId);
 
-    List<LoginSession> findAllByAccountIdAndStatus(
-            UUID accountId,
-            LoginSessionStatus status
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select session
+        from LoginSession session
+        where session.accountId = :accountId
+          and session.status = :status
+        order by session.id
+        """)
+    List<LoginSession> findAllByAccountIdAndStatusForUpdate(
+            @Param("accountId") UUID accountId,
+            @Param("status") LoginSessionStatus status
     );
 }

@@ -109,7 +109,33 @@ public enum AuthErrorCode implements ErrorCode {
     LOGIN_PROTECTION_UNAVAILABLE(
             "AUTH_1018",
             "Login protection is temporarily unavailable",
-            HttpStatus.SERVICE_UNAVAILABLE);
+            HttpStatus.SERVICE_UNAVAILABLE
+    ),
+
+    CURRENT_PASSWORD_INVALID(
+            "AUTH_1019",
+            "Current password is incorrect",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    NEW_PASSWORD_MUST_DIFFER(
+            "AUTH_1020",
+            "New password must be different from the current password",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    PASSWORD_RESET_UNAVAILABLE(
+        "AUTH_1021",
+        "Password reset is temporarily unavailable",
+        HttpStatus.SERVICE_UNAVAILABLE
+    ),
+
+    PASSWORD_RESET_TOKEN_INVALID(
+            "AUTH_1022",
+            "Password reset token is invalid or expired",
+            HttpStatus.BAD_REQUEST
+    ),
+    ;
 
 
     private String code;

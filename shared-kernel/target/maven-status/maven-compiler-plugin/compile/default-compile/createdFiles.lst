@@ -1,6 +1,7 @@
 com/campushub/shared/security/AuthenticatedAccount.class
 com/campushub/shared/error/CommonErrorCode.class
 com/campushub/shared/utils/RequestUtils.class
+com/campushub/shared/utils/TextNormalizer.class
 com/campushub/shared/error/ErrorCode.class
 com/campushub/shared/error/BaseException.class
 com/campushub/shared/base/BaseEntity.class

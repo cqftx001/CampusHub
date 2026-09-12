@@ -3,6 +3,7 @@ package com.campushub.auth.controller;
 import com.campushub.auth.dto.*;
 import com.campushub.auth.service.AuthService;
 import com.campushub.auth.service.EmailVerificationService;
+import com.campushub.auth.service.PasswordService;
 import com.campushub.auth.vo.CurrentAccountView;
 import com.campushub.auth.vo.LoginView;
 import com.campushub.auth.vo.RegisterAccountView;
@@ -24,13 +25,16 @@ public class AuthController {
 
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordService passwordService;
 
     public AuthController(
             AuthService authService,
-            EmailVerificationService emailVerificationService
+            EmailVerificationService emailVerificationService,
+            PasswordService passwordService
     ) {
         this.authService = authService;
         this.emailVerificationService = emailVerificationService;
+        this.passwordService = passwordService;
     }
 
     @PostMapping("/register")
@@ -143,5 +147,48 @@ public class AuthController {
      * POST /api/auth/password-reset/confirm
      * POST /api/auth/password/change
      */
+    @PostMapping("/password/change")
+    public ResponseEntity<ResponseResult<Void>> changePassword(
+            @AuthenticationPrincipal
+            AuthenticatedAccount authenticatedAccount,
+            @Valid
+            @RequestBody
+            PasswordChangeRequest passwordChangeRequest,
+            HttpServletRequest request
+    ) {
+        passwordService.changePassword(authenticatedAccount.accountId(), passwordChangeRequest);
 
+        String requestId = RequestUtils.getOrCreateRequestId(request);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ResponseResult.success(requestId));
+    }
+
+    @PostMapping("/password-reset/request")
+    public ResponseEntity<ResponseResult<Void>> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest resetRequest,
+            HttpServletRequest request
+    ) {
+        passwordService.requestPasswordReset(resetRequest);
+
+        String requestId = RequestUtils.getOrCreateRequestId(request);
+
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(ResponseResult.success(requestId));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<ResponseResult<Void>> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest passwordResetConfirmRequest,
+            HttpServletRequest request
+    ) {
+        passwordService.confirmPasswordReset(passwordResetConfirmRequest);
+        String requestId = RequestUtils.getOrCreateRequestId(request);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ResponseResult.success(requestId));
+    }
 }
