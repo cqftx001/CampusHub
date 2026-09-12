@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: campushub
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/campushub}
+    username: ${POSTGRES_USER:campushub}
+    password: ${POSTGRES_PASSWORD:campushub}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${GMAIL_APP_PASSWORD}
+    test-connection: true
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+            required: ${MAIL_SMTP_STARTTLS_REQUIRED:true}
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+campushub:
+  auth:
+    jwt:
+      issuer: ${JWT_ISSUER:campushub}
+      secret: ${JWT_SECRET:Y2FtcHVzaHViLWRldi1qd3Qtc2VjcmV0LWNoYW5nZS1tZQ==}
+      audience: ${JWT_AUDIENCE:campushub-api}
+      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
+
+    login-rate-limit:
+      window: ${LOGIN_RATE_LIMIT_WINDOW:15m}
+      identifier-max-failures: ${LOGIN_IDENTIFIER_MAX_FAILURES:5}
+      ip-max-failures: ${LOGIN_IP_MAX_FAILURES:50}
+
+    password-reset:
+      token-ttl: ${PASSWORD_RESET_TOKEN_TTL:15m}
+      request-cooldown: ${PASSWORD_RESET_REQUEST_COOLDOWN:60s}
+      reset-url: ${PASSWORD_RESET_URL:http://localhost:3000/reset-password}
+      from-address: ${MAIL_FROM_ADDRESS:no-reply@campushub.local}
+
+    email-verification:
+      token-ttl: ${EMAIL_VERIFICATION_TOKEN_TTL:24h}
+      resend-cooldown: ${EMAIL_VERIFICATION_RESEND_COOLDOWN:60s}
+      verification-url: ${EMAIL_VERIFICATION_URL:http://localhost:3000/verify-email}
+      from-address: ${MAIL_FROM_ADDRESS:no-reply@campushub.local}
+
+    login-session:
+      ttl: ${LOGIN_SESSION_TTL:30d}
+server:
+  port: 8080

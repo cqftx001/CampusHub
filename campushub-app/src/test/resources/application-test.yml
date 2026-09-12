@@ -1,0 +1,59 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:campushub;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  mail:
+    host: smtp.gmail.com
+    port: 1025
+    username:
+    password:
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+            required: false
+    test-connection: false
+
+campushub:
+  auth:
+    jwt:
+      issuer: campushub-test
+      audience: campushub-api
+      secret: dGVzdC1jYW1wdXNodWItaGFzLTI1Ni1zZWNyZXQta2V5LTEyMzQ1Njc4OTA=
+      access-token-ttl: 15m
+
+    login-rate-limit:
+      window: 15m
+      identifier-max-failures: 5
+      ip-max-failures: 50
+
+    password-reset:
+      token-ttl: 15m
+      request-cooldown: 60s
+      reset-url: https://campushub.test/reset-password
+      from-address: no-reply@campushub.test
+
+    email-verification:
+      token-ttl: 24h
+      resend-cooldown: 60s
+      verification-url: http://localhost:3000/verify-email
+      from-address: no-reply@campushub.test
+    login-session:
+      ttl: ${LOGIN_SESSION_TTL:30d}
