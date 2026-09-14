@@ -8,4 +8,7 @@ public class MarketplaceException extends BaseException {
        super(errorCode);
    }
 
+   public MarketplaceException(MarketplaceErrorCode errorCode, String customMessage) {
+       super(errorCode, customMessage);
+   }
 }

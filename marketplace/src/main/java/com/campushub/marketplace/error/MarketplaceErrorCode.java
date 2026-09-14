@@ -5,12 +5,6 @@ import org.springframework.http.HttpStatus;
 
 public enum MarketplaceErrorCode implements ErrorCode {
 
-    INVALID_LABEL_SELECTION(
-            "MARKETPLACE_1001",
-            "Label selection is invalid",
-            HttpStatus.BAD_REQUEST
-    ),
-
     LISTING_NOT_FOUND(
             "MARKETPLACE_1002",
             "Listing was not found",
@@ -41,7 +35,41 @@ public enum MarketplaceErrorCode implements ErrorCode {
             HttpStatus.BAD_REQUEST
     ),
 
+    CATEGORY_NOT_FOUND(
+            "MARKETPLACE_1007",
+            "Category was not found",
+            HttpStatus.NOT_FOUND
+    ),
 
+    CATEGORY_NOT_AVAILABLE(
+            "MARKETPLACE_1008",
+            "Category is not available for listing",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    BRAND_NOT_FOUND(
+            "MARKETPLACE_1009",
+            "Brand was not found",
+            HttpStatus.NOT_FOUND
+    ),
+
+    BRAND_NOT_AVAILABLE(
+            "MARKETPLACE_1010",
+            "Brand is not available for listing",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    INVALID_LISTING_DETAILS(
+            "MARKETPLACE_1011",
+            "Listing details are invalid",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    INVALID_LISTING_FILTERS(
+            "MARKETPLACE_1012",
+            "Listing filters are invalid",
+            HttpStatus.BAD_REQUEST
+    )
 
     ;
 

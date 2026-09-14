@@ -15,11 +15,6 @@ import jakarta.persistence.*;
 )
 public class Category extends BaseEntity {
 
-    /**
-     * Slug(String), displayName(String), parent(Category), active(boolean), disPlayOrder(int)
-     */
-
-
     @Column(
             nullable = false,
             length = CatalogNormalizer.MAXIMUM_SLUG_LENGTH,
@@ -50,27 +45,44 @@ public class Category extends BaseEntity {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
-    protected Category() {}
+    protected Category() {
+    }
 
-    public Category(String slug, String displayName, Category parent, int displayOrder) {
+    public Category(
+            String slug,
+            String displayName,
+            Category parent,
+            int displayOrder
+    ) {
         if (parent != null && !parent.isRoot()) {
-            throw new IllegalArgumentException("Marketplace categories support only two levels");
+            throw new IllegalArgumentException(
+                    "Marketplace categories support only two levels"
+            );
         }
 
         this.slug = CatalogNormalizer.normalizeSlug(slug);
-        this.displayName = CatalogNormalizer.normalizeDisplayName(displayName);
-        this.displayOrder = CatalogNormalizer.requireDisplayOrder(displayOrder);
+        this.displayName =
+                CatalogNormalizer.normalizeDisplayName(displayName);
         this.parent = parent;
+        this.displayOrder =
+                CatalogNormalizer.requireDisplayOrder(displayOrder);
         this.active = true;
     }
+
 
     public boolean isRoot() {
         return parent == null;
     }
 
-    // Check if the category is allowed to be selected when publishing a product
+    public boolean isLeaf() {
+        return parent != null;
+    }
+
     public boolean isAvailableForListing() {
-        return active && parent != null && parent.isRoot() && parent.isActive();
+        return active
+                && isLeaf()
+                && parent.isRoot()
+                && parent.isActive();
     }
 
     public String getSlug() {
@@ -92,5 +104,6 @@ public class Category extends BaseEntity {
     public int getDisplayOrder() {
         return displayOrder;
     }
+
 
 }

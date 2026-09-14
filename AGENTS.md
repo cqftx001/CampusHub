@@ -46,6 +46,19 @@
 - Each feature module owns its business `ErrorCode` enum and exception type.
 - Do not prebuild functionality for future requirements.
 
+## Marketplace Delivery Priorities
+
+- Treat Marketplace as a resume-project feature whose priority is reaching a
+  small, coherent, end-to-end deliverable quickly.
+- Prefer the simplest implementation that satisfies the agreed Marketplace V1
+  behavior. Avoid unnecessary infrastructure, generic frameworks, and future-
+  proofing that delays delivery.
+- Before increasing the Marketplace's technical depth or architectural
+  complexity, explain the benefit, implementation cost, and delivery impact,
+  then discuss the choice with the user. Implement it only after agreement.
+- Required correctness, authentication, authorization, validation, transaction,
+  and data-integrity safeguards are not considered optional over-engineering.
+
 ## API Documentation
 
 - Maintain `/api.md` whenever an endpoint is added or changed.
