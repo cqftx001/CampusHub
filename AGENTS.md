@@ -1,5 +1,6 @@
 # CampusHub Collaboration Rules
 
+- 自动修改api.md
 
 ## Coding Standards
 

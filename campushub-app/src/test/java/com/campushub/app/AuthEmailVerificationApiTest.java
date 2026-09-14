@@ -16,13 +16,14 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -61,7 +62,21 @@ class AuthEmailVerificationApiTest {
                 any(Duration.class)
         )).thenReturn(true);
 
-        doReturn(1L).when(stringRedisTemplate).execute(
+        doAnswer(invocation -> {
+            List<?> keys = invocation.getArgument(1);
+
+            boolean loginAttemptScript = keys.stream()
+                    .map(String::valueOf)
+                    .anyMatch(key ->
+                            key.startsWith(
+                                    "auth:login:failure:"
+                            )
+                    );
+
+            // 登录限流脚本：0 表示允许继续
+            // 邮箱验证码脚本：1 表示操作成功
+            return loginAttemptScript ? 0L : 1L;
+        }).when(stringRedisTemplate).execute(
                 any(RedisScript.class),
                 anyList(),
                 any(Object[].class)

@@ -1,27 +1,26 @@
 package com.campushub.marketplace.controller;
 
 import com.campushub.marketplace.domain.ListingCondition;
+import com.campushub.marketplace.domain.ListingStatus;
 import com.campushub.marketplace.dto.CreateListingRequest;
 import com.campushub.marketplace.dto.ListingSearchCriteria;
 import com.campushub.marketplace.service.ListingService;
 import com.campushub.marketplace.vo.ListingPageView;
 import com.campushub.marketplace.vo.ListingSummaryView;
 import com.campushub.marketplace.vo.ListingView;
+import com.campushub.marketplace.vo.SellerListingPageView;
 import com.campushub.shared.base.ResponseResult;
 import com.campushub.shared.security.AuthenticatedAccount;
 import com.campushub.shared.utils.RequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -54,6 +53,16 @@ public class ListingController {
 
     @GetMapping
     public ResponseEntity<ResponseResult<ListingPageView>> getListings(
+            @RequestParam(
+                    name = "q",
+                    required = false
+            )
+            @Size(
+                    max = ListingSearchCriteria.MAXIMUM_KEYWORD_LENGTH,
+                    message = "Search keyword cannot exceed 100 characters"
+            )
+            String keyword,
+
             @RequestParam(required = false)
             String category,
 
@@ -110,6 +119,7 @@ public class ListingController {
         String requestId = RequestUtils.getOrCreateRequestId(servletRequest);
 
         ListingSearchCriteria searchCriteria = new ListingSearchCriteria(
+                keyword,
                 category,
                 brand,
                 condition,
@@ -122,6 +132,40 @@ public class ListingController {
                 page,
                 size
         );
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ResponseResult.success(listings, requestId));
+    }
+
+    @GetMapping("/mine")
+    public ResponseEntity<ResponseResult<SellerListingPageView>> getMyListings(
+            @AuthenticationPrincipal
+            AuthenticatedAccount account,
+
+            @RequestParam(required = false)
+            ListingStatus status,
+
+            @RequestParam(defaultValue = "0")
+            @Min(value = 0, message = "Page must not be negative")
+            int page,
+
+            @RequestParam(defaultValue = "20")
+            @Min(value = 1, message = "Page size must be positive")
+            @Max(value = 50, message = "Page size cannot exceed 50")
+            int size,
+
+            HttpServletRequest request
+    ) {
+        String requestId = RequestUtils.getOrCreateRequestId(request);
+
+        SellerListingPageView listings =
+                listingService.searchSellerListing(
+                        account.accountId(),
+                        status,
+                        page,
+                        size
+                );
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -141,4 +185,5 @@ public class ListingController {
                 .status(HttpStatus.OK)
                 .body(ResponseResult.success(listing, requestId));
     }
+
 }

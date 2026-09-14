@@ -9,13 +9,12 @@ import com.campushub.marketplace.error.MarketplaceException;
 import com.campushub.marketplace.mapper.ListingMapper;
 import com.campushub.marketplace.repository.ListingRepository;
 import com.campushub.marketplace.repository.projection.ListingSummaryRow;
+import com.campushub.marketplace.repository.projection.SellerListingSummaryRow;
 import com.campushub.marketplace.service.CatalogSelectionResolver;
 import com.campushub.marketplace.service.ListingService;
 import com.campushub.marketplace.service.ResolvedCatalogSelection;
 import com.campushub.marketplace.utils.CatalogNormalizer;
-import com.campushub.marketplace.vo.ListingPageView;
-import com.campushub.marketplace.vo.ListingSummaryView;
-import com.campushub.marketplace.vo.ListingView;
+import com.campushub.marketplace.vo.*;
 import com.campushub.shared.utils.TextNormalizer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -88,12 +87,14 @@ public class ListingServiceImpl implements ListingService {
 
         String categorySlug = normalizeOptionalSlug(criteria.categorySlug());
         String brandSlug = normalizeOptionalSlug(criteria.brandSlug());
+        String keywordPattern = createKeywordPattern(criteria.keyword());
 
         PageRequest pageRequest = PageRequest.of(page, size);
 
         Page<ListingSummaryRow> result = listingRepository
                 .searchActiveListingSummaries(
                         ListingStatus.ACTIVE,
+                        keywordPattern,
                         categorySlug,
                         brandSlug,
                         criteria.condition(),
@@ -120,6 +121,39 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
+    public SellerListingPageView searchSellerListing(
+            UUID sellerAccountId,
+            ListingStatus status,
+            int page,
+            int size
+    ) {
+        Objects.requireNonNull(sellerAccountId, "Seller account ID cannot be null");
+
+        validatePageRequest(page, size);
+
+        PageRequest pageRequest = PageRequest.of(page, size);
+
+        Page<SellerListingSummaryRow> result = listingRepository
+                .findSellerListingSummaries(sellerAccountId, status, pageRequest);
+
+        List<SellerListingSummaryView> items =
+                result.getContent()
+                        .stream()
+                        .map(listingMapper::toSellerSummaryView)
+                        .toList();
+
+        return new SellerListingPageView(
+                items,
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages(),
+                result.hasNext(),
+                result.hasPrevious()
+        );
+    }
+
+    @Override
     public ListingView getActiveListing(UUID listingId) {
         Objects.requireNonNull(listingId, "Listing ID cannot be null");
 
@@ -130,6 +164,27 @@ public class ListingServiceImpl implements ListingService {
     }
 
     // --- helper ---
+    private String createKeywordPattern(String keyword) {
+        String normalized = TextNormalizer.stripAndLowercaseToNull(keyword);
+
+        if(normalized == null) {
+            return null;
+        }
+
+        if(normalized.length() > ListingSearchCriteria.MAXIMUM_KEYWORD_LENGTH) {
+            throw invalidFilters("Search keyword cannot exceed 100 characters");
+        }
+
+        // 转义字符: % 任意长度字符匹配; _ 匹配单个任意字符; \\s+ 空格制定任意匹配
+        String escaped = normalized
+                .replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_")
+                .replaceAll("\\s+", "%");
+
+        return "%" + escaped + "%";
+    }
+
     private String normalizeOptionalSlug(String value) {
         String stripped = TextNormalizer.stripToNull(value);
 

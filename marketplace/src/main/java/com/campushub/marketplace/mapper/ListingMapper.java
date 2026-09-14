@@ -4,10 +4,8 @@ import com.campushub.marketplace.domain.Brand;
 import com.campushub.marketplace.domain.Category;
 import com.campushub.marketplace.domain.Listing;
 import com.campushub.marketplace.repository.projection.ListingSummaryRow;
-import com.campushub.marketplace.vo.BrandReferenceView;
-import com.campushub.marketplace.vo.CategoryReferenceView;
-import com.campushub.marketplace.vo.ListingSummaryView;
-import com.campushub.marketplace.vo.ListingView;
+import com.campushub.marketplace.repository.projection.SellerListingSummaryRow;
+import com.campushub.marketplace.vo.*;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -54,6 +52,22 @@ public class ListingMapper {
                 row.deliveryMethod(),
                 row.primaryImageUrl(),
                 row.createdAt()
+        );
+    }
+
+    public SellerListingSummaryView toSellerSummaryView(
+            SellerListingSummaryRow row
+    ) {
+        return new SellerListingSummaryView(
+                row.id(),
+                row.title(),
+                row.price(),
+                row.currency(),
+                row.primaryImageUrl(),
+                row.status(),
+                row.version(),
+                row.createdAt(),
+                row.updatedAt()
         );
     }
 

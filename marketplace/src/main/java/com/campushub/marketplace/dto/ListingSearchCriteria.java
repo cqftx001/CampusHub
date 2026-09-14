@@ -13,10 +13,14 @@ import java.math.BigDecimal;
  * @param maximumPrice
  */
 public record ListingSearchCriteria(
+        String keyword,
         String categorySlug,
         String brandSlug,
         ListingCondition condition,
         BigDecimal minimumPrice,
         BigDecimal maximumPrice
 ) {
+
+    public static final int MAXIMUM_KEYWORD_LENGTH = 100;
+
 }
