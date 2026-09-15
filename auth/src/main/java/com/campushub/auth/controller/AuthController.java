@@ -1,9 +1,13 @@
 package com.campushub.auth.controller;
 
 import com.campushub.auth.dto.*;
+import com.campushub.auth.error.AuthErrorCode;
+import com.campushub.auth.error.AuthException;
+import com.campushub.auth.security.RefreshTokenCookieManager;
 import com.campushub.auth.service.AuthService;
 import com.campushub.auth.service.EmailVerificationService;
 import com.campushub.auth.service.PasswordService;
+import com.campushub.auth.token.IssuedAuthTokens;
 import com.campushub.auth.vo.CurrentAccountView;
 import com.campushub.auth.vo.LoginView;
 import com.campushub.auth.vo.RegisterAccountView;
@@ -11,13 +15,17 @@ import com.campushub.shared.base.ResponseResult;
 import com.campushub.shared.security.AuthenticatedAccount;
 import com.campushub.shared.utils.RequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.apache.coyote.Request;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+
+import static com.campushub.auth.security.RefreshTokenCookieManager.COOKIE_NAME;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -26,15 +34,18 @@ public class AuthController {
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
     private final PasswordService passwordService;
+    private final RefreshTokenCookieManager refreshTokenCookieManager;
 
     public AuthController(
             AuthService authService,
             EmailVerificationService emailVerificationService,
-            PasswordService passwordService
+            PasswordService passwordService,
+            RefreshTokenCookieManager refreshTokenCookieManager
     ) {
         this.authService = authService;
         this.emailVerificationService = emailVerificationService;
         this.passwordService = passwordService;
+        this.refreshTokenCookieManager = refreshTokenCookieManager;
     }
 
     @PostMapping("/register")
@@ -84,7 +95,8 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ResponseResult<LoginView>> login(
             @Valid @RequestBody LoginRequest loginRequest,
-            HttpServletRequest request
+            HttpServletRequest request,
+            HttpServletResponse response
     ){
         LoginClientContext loginClientContext =
                 new LoginClientContext(
@@ -92,23 +104,36 @@ public class AuthController {
                         request.getRemoteAddr()
                 );
 
-        LoginView loginView = authService.login(loginRequest, loginClientContext);
+        IssuedAuthTokens tokens = authService.login(loginRequest, loginClientContext);
+
+
+        response.addHeader(
+                HttpHeaders.SET_COOKIE,
+                refreshTokenCookieManager
+                        .create(tokens.refreshToken(), tokens.sessionExpiresAt())
+                        .toString()
+        );
 
         String requestId = RequestUtils.getOrCreateRequestId(request);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ResponseResult.success(loginView, requestId));
+                .body(ResponseResult.success(LoginView.from(tokens), requestId));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<ResponseResult<Void>> logout(
             @AuthenticationPrincipal AuthenticatedAccount account,
-            HttpServletRequest servletRequest
+            HttpServletRequest request,
+            HttpServletResponse response
     ){
-        String requestId = RequestUtils.getOrCreateRequestId(servletRequest);
+        String requestId = RequestUtils.getOrCreateRequestId(request);
 
         authService.logout(account.accountId(), account.sessionId());
+
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                refreshTokenCookieManager.clear().toString()
+        );
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -117,16 +142,34 @@ public class AuthController {
 
     @PostMapping("/token/refresh")
     public ResponseEntity<ResponseResult<LoginView>> refreshToken(
-        @Valid @RequestBody RefreshTokenRequest request,
-        HttpServletRequest servletRequest
-    ){
-        LoginView view = authService.refresh(request);
+            @CookieValue(
+                    name = COOKIE_NAME,
+                    required = false
+            )
+            String rawRefreshToken,
 
-        String requestId = RequestUtils.getOrCreateRequestId(servletRequest);
+            HttpServletRequest request,
+            HttpServletResponse response
+    ){
+        RefreshTokenRequest refreshTokenRequest = refreshRequestFromCookie(rawRefreshToken);
+
+        IssuedAuthTokens tokens = authService.refresh(refreshTokenRequest);
+
+        response.addHeader(
+                HttpHeaders.SET_COOKIE,
+                refreshTokenCookieManager
+                        .create(
+                                tokens.refreshToken(),
+                                tokens.sessionExpiresAt()
+                        )
+                        .toString()
+        );
+
+        String requestId = RequestUtils.getOrCreateRequestId(request);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ResponseResult.success(view, requestId));
+                .body(ResponseResult.success(LoginView.from(tokens), requestId));
     }
 
     @GetMapping("/me")
@@ -190,5 +233,17 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ResponseResult.success(requestId));
+    }
+
+    // --- helper ---
+    private RefreshTokenRequest refreshRequestFromCookie(
+            String rawRefreshToken
+    ) {
+        if (rawRefreshToken == null || rawRefreshToken.isBlank()
+                || rawRefreshToken.length() > RefreshTokenRequest.MAXIMUM_TOKEN_LENGTH) {
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
+        return new RefreshTokenRequest(rawRefreshToken);
     }
 }

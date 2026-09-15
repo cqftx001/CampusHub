@@ -62,5 +62,9 @@ campushub:
 
     login-session:
       ttl: ${LOGIN_SESSION_TTL:30d}
+
+    refresh-cookie:
+      secure: ${REFRESH_COOKIE_SECURE:false}
+      same-site: ${REFRESH_COOKIE_SAME_SITE:Strict}
 server:
   port: 8080

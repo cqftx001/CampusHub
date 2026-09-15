@@ -5,7 +5,9 @@ import jakarta.validation.constraints.Size;
 
 public record RefreshTokenRequest(
         @NotBlank
-        @Size(max = 512)
+        @Size(max = MAXIMUM_TOKEN_LENGTH)
         String refreshToken
 ) {
+
+        public static final int MAXIMUM_TOKEN_LENGTH = 512;
 }

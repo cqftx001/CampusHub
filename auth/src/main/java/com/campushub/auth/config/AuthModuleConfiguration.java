@@ -13,7 +13,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
         JwtProperties.class,
         LoginSessionProperties.class,
         LoginRateLimitProperties.class,
-        PasswordResetProperties.class
+        PasswordResetProperties.class,
+        RefreshCookieProperties.class
 })
 public class AuthModuleConfiguration {
 

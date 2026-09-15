@@ -29,8 +29,8 @@ import com.campushub.auth.token.RefreshTokenIssuer;
 import com.campushub.auth.utils.AuthInputNormalizer;
 import com.campushub.auth.utils.SecureTokenGenerator;
 import com.campushub.auth.utils.Sha256Hasher;
-import com.campushub.auth.vo.LoginView;
 import com.campushub.shared.error.ErrorCode;
+import com.campushub.auth.token.IssuedAuthTokens;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -182,7 +182,7 @@ class RefreshTokenIntegrationTest {
     void activeRefreshTokenIsRotated() {
         RefreshFixture fixture = createFixture();
 
-        LoginView result = authService.refresh(
+        IssuedAuthTokens result = authService.refresh(
                 new RefreshTokenRequest(
                         fixture.rawToken()
                 )
@@ -200,7 +200,7 @@ class RefreshTokenIntegrationTest {
         assertThat(result.expiresInSeconds())
                 .isEqualTo(900);
 
-        assertThat(result.refreshTokenExpiresAt())
+        assertThat(result.sessionExpiresAt())
                 .isEqualTo(
                         fixture.sessionExpiresAt()
                 );
@@ -869,7 +869,7 @@ class RefreshTokenIntegrationTest {
                 );
             }
 
-            LoginView result =
+            IssuedAuthTokens result =
                     authService.refresh(
                             new RefreshTokenRequest(
                                     rawToken
@@ -906,7 +906,7 @@ class RefreshTokenIntegrationTest {
     }
 
     private record RefreshAttempt(
-            LoginView result,
+            IssuedAuthTokens result,
             ErrorCode errorCode
     ) {
         boolean succeeded() {

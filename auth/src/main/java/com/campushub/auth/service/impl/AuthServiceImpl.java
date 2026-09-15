@@ -15,7 +15,6 @@ import com.campushub.auth.service.AuthService;
 import com.campushub.auth.service.EmailVerificationService;
 import com.campushub.auth.token.*;
 import com.campushub.auth.vo.CurrentAccountView;
-import com.campushub.auth.vo.LoginView;
 import com.campushub.auth.vo.RegisterAccountView;
 import com.campushub.auth.utils.AuthInputNormalizer;
 import org.springframework.context.ApplicationEventPublisher;
@@ -155,7 +154,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public LoginView login(
+    public IssuedAuthTokens login(
             LoginRequest request,
             LoginClientContext loginClientContext
     ) {
@@ -226,7 +225,7 @@ public class AuthServiceImpl implements AuthService {
                 issuedAccessToken.expiresAt()
         ).toSeconds();
 
-        return new LoginView(
+        return new IssuedAuthTokens(
                 issuedAccessToken.value(),
                 issuedRefreshToken.value(),
                 "Bearer",
@@ -241,7 +240,7 @@ public class AuthServiceImpl implements AuthService {
                     RefreshTokenReuseDetectedException.class,
                     SessionRegistryRevocationFailedException.class
             })
-    public LoginView refresh(RefreshTokenRequest request) {
+    public IssuedAuthTokens refresh(RefreshTokenRequest request) {
         Instant refreshedAt = clock.instant();
 
         String tokenHash = refreshTokenIssuer.hash(request.refreshToken());
@@ -333,7 +332,7 @@ public class AuthServiceImpl implements AuthService {
                 issuedAccessToken.expiresAt()
         ).toSeconds();
 
-        return new LoginView(
+        return new IssuedAuthTokens(
                 issuedAccessToken.value(),
                 issuedRefreshToken.value(),
                 "Bearer",
