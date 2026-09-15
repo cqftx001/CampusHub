@@ -69,6 +69,18 @@ public enum MarketplaceErrorCode implements ErrorCode {
             "MARKETPLACE_1012",
             "Listing filters are invalid",
             HttpStatus.BAD_REQUEST
+    ),
+
+    INVALID_IMAGE_UPLOAD(
+            "MARKETPLACE_1013",
+            "Image upload is invalid",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    IMAGE_STORAGE_UNAVAILABLE(
+            "MARKETPLACE_1014",
+            "Image storage is temporarily unavailable",
+            HttpStatus.SERVICE_UNAVAILABLE
     )
 
     ;

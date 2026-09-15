@@ -1,6 +1,6 @@
 # CampusHub Collaboration Rules
 
-- 自动修改api.md
+- 自动修改api.md, 只允许修改模块的pom.xml文件, 不允许修改其他项目文件
 
 ## Coding Standards
 

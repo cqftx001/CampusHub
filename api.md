@@ -37,7 +37,9 @@ Rules:
 
 - `username`: 3-32 characters; letters, numbers, `.`, `_`, and `-` only.
 - `email`: valid email, at most 254 characters.
-- `password`: 8-72 characters and at most 72 UTF-8 bytes (BCrypt limit).
+- `password`: 8-72 characters and at most 72 UTF-8 bytes (BCrypt limit). It
+  must contain at least one uppercase letter, one lowercase letter, one digit,
+  and one of `!@#$%^&*._-`; no other characters are accepted.
 - Username and email are normalized to lowercase.
 - Username and email are each unique.
 
@@ -87,12 +89,17 @@ Response data:
 ```json
 {
   "accessToken": "jwt",
-  "refreshToken": "opaque-refresh-token",
   "tokenType": "Bearer",
   "expiresInSeconds": 900,
-  "refreshTokenExpiresAt": "2026-09-27T12:00:00Z"
+  "sessionExpiresAt": "2026-10-15T12:00:00Z"
 }
 ```
+
+The raw refresh token is not included in the JSON response. A successful login
+sets it in the `campushub_refresh_token` cookie with `HttpOnly`, the configured
+`Secure` flag, `SameSite=Strict` by default, and `Path=/api/auth`. Browser
+clients keep the access token in memory and send it through the
+`Authorization` header.
 
 Each successful login creates an independent login session. Multiple login
 sessions for the same account remain valid independently. Redis stores the
@@ -115,41 +122,36 @@ Errors:
 - Success status: `200 OK`
 - Idempotency: not idempotent; each refresh token can be used once.
 
-Request:
-
-```json
-{
-  "refreshToken": "opaque-refresh-token"
-}
-```
+Request body: none. The browser sends the `campushub_refresh_token` HttpOnly
+cookie automatically.
 
 Response data:
 
 ```json
 {
   "accessToken": "new-jwt",
-  "refreshToken": "new-opaque-refresh-token",
   "tokenType": "Bearer",
   "expiresInSeconds": 900,
-  "refreshTokenExpiresAt": "2026-09-27T12:00:00Z"
+  "sessionExpiresAt": "2026-10-15T12:00:00Z"
 }
 ```
 
 A successful refresh atomically replaces the login session's current JWT ID in
 Redis. The previous access token for that same session is no longer current.
-It also marks the supplied refresh token as `USED` and returns a new active
-refresh token. The returned refresh token can be used for the next rotation, so
-the chain can continue until the original login session expires. Refresh does
-not extend that absolute session expiration time.
+It also marks the cookie's refresh token as `USED`, creates a new active refresh
+token, and replaces the HttpOnly cookie in the response. The rotated cookie can
+be used for the next refresh, so the chain can continue until the original
+login session expires. Refresh does not extend that absolute session expiration
+time.
 
 Different login sessions for the same account are independent; refreshing one
 session does not invalidate access tokens issued to another session.
 
 Errors:
 
-- `400 COMMON_1001`: request validation failed.
-- `401 AUTH_1015`: the refresh token is unknown, expired, already used, its
-  session is inactive, or its online Redis session is missing.
+- `401 AUTH_1015`: the refresh cookie is missing, malformed, unknown, expired,
+  already used, its session is inactive, or its online Redis session is
+  missing.
 - `403 AUTH_1014`: the account is disabled.
 - `503 AUTH_1016`: the online authentication-session registry is unavailable.
 
@@ -239,9 +241,8 @@ Errors:
 - Success status: `200 OK`
 
 Logout revokes the persisted login session and its active refresh token. The
-operation uses the same session-first lock order as refresh. Redis removal of
-the current access-token registration is not yet wired into this slice, so
-immediate access-token invalidation on logout remains follow-up work.
+operation uses the same session-first lock order as refresh, revokes the online
+Redis session, and clears the `campushub_refresh_token` cookie with `Max-Age=0`.
 
 Errors:
 
@@ -274,16 +275,16 @@ and supplies a same-origin return location so the user can resume the original
 Marketplace page after authentication.
 
 Marketplace V1 uses fixed USD asking prices. It does not include bidding,
-offers, carts, orders, payments, inventory reservation, messaging, or media
-upload.
+offers, carts, orders, payments, inventory reservation, or messaging.
 
 Listing conditions:
 
 - `NEW`
+- `OPEN_BOX`
 - `LIKE_NEW`
 - `GOOD`
 - `FAIR`
-- `FOR_PARTS`
+- `FOR_PARTS_OR_NOT_WORKING`
 
 Listing statuses:
 
@@ -291,36 +292,91 @@ Listing statuses:
 - `SOLD`: hidden from search results.
 - `WITHDRAWN`: hidden from search results.
 
-### List Labels
+### Upload Marketplace Images
+
+- Method: `POST`
+- Path: `/api/marketplace/images`
+- Authentication: `Authorization: Bearer <access-token>`
+- Content type: `multipart/form-data`
+- Success status: `201 Created`
+- Idempotency: not idempotent; retrying creates a new upload batch and new
+  object keys.
+
+The multipart field name is `files`. A request accepts 1-8 images. Each image
+must be at most 5 MB and contain valid JPEG, PNG, or WebP bytes. Validation uses
+the file signature rather than trusting the browser-supplied content type.
+
+Objects use the following key structure inside the Marketplace bucket:
+
+```text
+marketplace/accounts/{accountId}/{uploadBatchId}/{imageId}.{extension}
+```
+
+Response data:
+
+```json
+{
+  "uploadBatchId": "uuid",
+  "imageUrls": [
+    "https://marketplace-assets.example.com/marketplace/accounts/account-uuid/batch-uuid/image-uuid.webp"
+  ]
+}
+```
+
+The returned HTTPS URLs are supplied as `imageUrls` when creating or updating
+a listing. URL order is preserved, and the first URL becomes the listing's
+primary image. If a batch fails after some objects were stored, the service
+attempts to remove those partial objects.
+
+Errors:
+
+- `400 COMMON_1001`: the servlet upload-size limit was exceeded.
+- `400 MARKETPLACE_1013`: the image count, size, content, or supported format
+  is invalid.
+- `401 AUTH_1005`: the access token is missing, invalid, expired, or is not
+  current for its login session.
+- `503 AUTH_1016`: the online authentication-session registry is unavailable.
+- `503 MARKETPLACE_1014`: OSS is disabled or temporarily unavailable. When OSS
+  is explicitly enabled with incomplete configuration, application startup
+  fails fast instead of exposing a partially configured upload endpoint.
+
+### Get Marketplace Catalog
 
 - Method: `GET`
-- Path: `/api/marketplace/labels`
+- Path: `/api/marketplace/catalog`
 - Authentication: `Authorization: Bearer <access-token>`
 - Success status: `200 OK`
 - Idempotency: safe and idempotent.
 
-Response data is a flat, display-ordered collection. `parentSlug` allows the
-frontend to present a two-level label picker without coupling the API to a
-particular tree component.
+The catalog supplies the frontend's two-level category navigation and brand
+filter. Categories and brands are returned in display order.
 
 ```json
-[
-  {
-    "slug": "electronics",
-    "displayName": "Electronics",
-    "parentSlug": null
-  },
-  {
-    "slug": "graphics-cards",
-    "displayName": "Graphics Cards",
-    "parentSlug": "electronics"
-  }
-]
+{
+  "categories": [
+    {
+      "slug": "electronics",
+      "displayName": "Electronics",
+      "children": [
+        {
+          "slug": "graphics-cards",
+          "displayName": "Graphics Cards"
+        }
+      ]
+    }
+  ],
+  "brands": [
+    {
+      "slug": "nvidia",
+      "displayName": "NVIDIA"
+    }
+  ]
+}
 ```
 
-Only active labels are returned. Selecting a child label causes its active
-ancestor labels to be attached to the listing as well. This makes a listing
-tagged `graphics-cards` discoverable through the broader `electronics` label.
+Only active catalog entries are returned. First-level categories are used for
+broad browsing; their children are the categories accepted when a listing is
+created or updated.
 
 Errors:
 
@@ -338,26 +394,25 @@ Errors:
 
 Query parameters:
 
-- `q`: optional trimmed keyword, 1-100 characters when present.
-- `labels`: optional comma-separated label slugs; a listing must contain every
-  requested label.
+- `q`: optional keyword, at most 100 characters.
+- `category`: optional first- or second-level category slug. A first-level slug
+  includes listings from all of its child categories.
+- `brand`: optional brand slug and may be used without a category.
+- `condition`: optional listing condition.
 - `minPrice`: optional inclusive USD lower bound.
 - `maxPrice`: optional inclusive USD upper bound.
-- `condition`: optional listing condition.
-- `sort`: `RELEVANCE`, `NEWEST`, `PRICE_ASC`, or `PRICE_DESC`. The default is
-  `RELEVANCE` when `q` is present and `NEWEST` otherwise.
 - `page`: zero-based page number; defaults to `0`.
 - `size`: page size; defaults to `20` and cannot exceed `50`.
 
 Example:
 
 ```http
-GET /api/marketplace/listings?q=5090&labels=electronics,graphics-cards&sort=RELEVANCE&page=0&size=20
+GET /api/marketplace/listings?q=5090&category=graphics-cards&brand=nvidia&page=0&size=20
 ```
 
-Search returns only `ACTIVE` listings. Keyword relevance ranks an exact title
-match before a title containing the keyword, then a description containing the
-keyword. Every sort uses `createdAt` and `id` as deterministic tie-breakers.
+Search returns only `ACTIVE` listings. A title containing the keyword is ranked
+before other matches, then results use `createdAt` and `id` as deterministic
+newest-first tie-breakers.
 
 Response data:
 
@@ -365,33 +420,41 @@ Response data:
 {
   "items": [
     {
-      "listingId": "uuid",
+      "id": "uuid",
+      "category": {
+        "slug": "graphics-cards",
+        "displayName": "Graphics Cards",
+        "parentSlug": "electronics",
+        "parentDisplayName": "Electronics"
+      },
+      "brand": {
+        "slug": "nvidia",
+        "displayName": "NVIDIA"
+      },
       "title": "NVIDIA RTX 5090",
-      "manufactureYear": 2025,
       "condition": "LIKE_NEW",
-      "askingPrice": 1999.00,
+      "price": 1999.00,
       "currency": "USD",
       "location": "Main Campus",
-      "coverImageUrl": "https://example.com/5090.jpg",
-      "labels": ["electronics", "graphics-cards"],
+      "deliveryMethod": "LOCAL_PICKUP",
+      "primaryImageUrl": "https://example.com/5090.jpg",
       "createdAt": "2026-09-02T18:00:00Z"
     }
   ],
   "page": 0,
   "size": 20,
-  "hasNext": false
+  "totalElements": 1,
+  "totalPages": 1,
+  "hasNext": false,
+  "hasPrevious": false
 }
 ```
 
-The response deliberately uses `hasNext` rather than a total result count so
-the common search path does not require an additional count query.
-
 Errors:
 
-- `400 COMMON_1001`: query parameter validation failed, the price range is
-  invalid, or the requested page is outside the supported range.
-- `400 MARKETPLACE_1001`: one or more requested labels do not exist or are
-  inactive.
+- `400 COMMON_1001`: query parameter validation or format failed.
+- `400 MARKETPLACE_1006`: a category or brand slug is invalid.
+- `400 MARKETPLACE_1012`: the price range is invalid.
 - `401 AUTH_1005`: the access token is missing, invalid, expired, or is not
   current for its login session.
 - `503 AUTH_1016`: the online authentication-session registry is unavailable.
@@ -404,24 +467,37 @@ Errors:
 - Success status: `200 OK`
 - Idempotency: safe and idempotent.
 
-An `ACTIVE` listing is visible to every authenticated account. A `SOLD` or
-`WITHDRAWN` listing is visible only to its seller; other accounts receive the
-same not-found response as they would for an unknown ID.
+Only `ACTIVE` listings are returned by this endpoint. Sellers use the separate
+seller-management endpoints to retrieve and manage their other listings.
 
 Response data:
 
 ```json
 {
-  "listingId": "uuid",
+  "id": "uuid",
+  "sellerAccountId": "uuid",
+  "category": {
+    "slug": "graphics-cards",
+    "displayName": "Graphics Cards",
+    "parentSlug": "electronics",
+    "parentDisplayName": "Electronics"
+  },
+  "brand": {
+    "slug": "nvidia",
+    "displayName": "NVIDIA"
+  },
   "title": "NVIDIA RTX 5090",
   "description": "Used for six months; original box included.",
   "manufactureYear": 2025,
   "condition": "LIKE_NEW",
-  "askingPrice": 1999.00,
+  "price": 1999.00,
   "currency": "USD",
   "location": "Main Campus",
-  "coverImageUrl": "https://example.com/5090.jpg",
-  "labels": ["electronics", "graphics-cards"],
+  "deliveryMethod": "LOCAL_PICKUP",
+  "imageUrls": [
+    "https://example.com/5090-front.jpg",
+    "https://example.com/5090-back.jpg"
+  ],
   "status": "ACTIVE",
   "version": 0,
   "createdAt": "2026-09-02T18:00:00Z",
@@ -433,8 +509,7 @@ Errors:
 
 - `401 AUTH_1005`: the access token is missing, invalid, expired, or is not
   current for its login session.
-- `404 MARKETPLACE_1002`: the listing does not exist or is not visible to the
-  current account.
+- `404 MARKETPLACE_1002`: the listing does not exist or is not active.
 - `503 AUTH_1016`: the online authentication-session registry is unavailable.
 
 ### Create Listing
@@ -451,29 +526,40 @@ Request:
 
 ```json
 {
+  "categorySlug": "graphics-cards",
+  "brandSlug": "NVIDIA",
   "title": "NVIDIA RTX 5090",
   "description": "Used for six months; original box included.",
   "manufactureYear": 2025,
   "condition": "LIKE_NEW",
-  "askingPrice": 1999.00,
+  "price": 1999.00,
   "location": "Main Campus",
-  "coverImageUrl": "https://example.com/5090.jpg",
-  "labels": ["electronics", "graphics-cards"]
+  "deliveryMethod": "LOCAL_PICKUP",
+  "imageUrls": [
+    "https://example.com/5090-front.jpg",
+    "https://example.com/5090-back.jpg"
+  ]
 }
 ```
 
 Rules:
 
-- `title`: required, trimmed, 3-120 characters.
-- `description`: required, trimmed, 1-4000 characters; treated as plain text.
-- `manufactureYear`: optional; from 1900 through the next calendar year.
+- `categorySlug`: required active second-level category slug; input is normalized
+  to lowercase.
+- `brandSlug`: optional active brand slug; input is normalized to lowercase.
+- `title`: required, trimmed, at most 160 characters.
+- `description`: required, trimmed, at most 5000 characters; treated as plain
+  text.
+- `manufactureYear`: optional integer from 1800 through 2100.
 - `condition`: required and must be one of the documented conditions.
-- `askingPrice`: required, greater than zero, and at most `9999999999.99`.
-- `location`: required, trimmed, 1-120 characters.
-- `coverImageUrl`: optional HTTPS URL, at most 2048 characters. Marketplace V1
-  stores the URL but does not fetch or proxy the remote content.
-- `labels`: 1-5 unique, active label slugs. Child-label ancestors added by the
-  service do not count against the submitted limit.
+- `price`: required, greater than zero, with at most 10 integer digits and 2
+  decimal digits.
+- `location`: required, trimmed, at most 160 characters.
+- `deliveryMethod`: required `LOCAL_PICKUP`, `SHIPPING`, or
+  `PICKUP_OR_SHIPPING`.
+- `imageUrls`: 1-8 non-blank HTTPS URLs, each at most 2048 characters. The
+  first URL is the primary image; Marketplace V1 stores URLs but does not fetch
+  or proxy remote content.
 - Currency is assigned by the server as `USD`.
 - `sellerAccountId`, status, timestamps, and version cannot be supplied by the
   client. A new listing is immediately `ACTIVE`.
@@ -483,7 +569,12 @@ Response data uses the Get Listing representation.
 Errors:
 
 - `400 COMMON_1001`: request validation failed.
-- `400 MARKETPLACE_1001`: one or more labels do not exist or are inactive.
+- `400 MARKETPLACE_1006`: a catalog slug is invalid.
+- `404 MARKETPLACE_1007`: the category does not exist.
+- `400 MARKETPLACE_1008`: the category cannot be used for a listing.
+- `404 MARKETPLACE_1009`: the brand does not exist.
+- `400 MARKETPLACE_1010`: the brand is inactive.
+- `400 MARKETPLACE_1011`: listing details are invalid.
 - `401 AUTH_1005`: the access token is missing, invalid, expired, or is not
   current for its login session.
 - `503 AUTH_1016`: the online authentication-session registry is unavailable.
