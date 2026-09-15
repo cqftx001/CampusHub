@@ -41,13 +41,14 @@ spring:
           writetimeout: 5000
 campushub:
   oss:
-    enabled: ${OSS_ENABLED:false}
+    enabled: ${OSS_ENABLED:true}
     endpoint: ${OSS_ENDPOINT:}
-    region: ${OSS_REGION:}
+    region: ${OSS_REGION:us-west-1}
     access-key-id: ${OSS_ACCESS_KEY_ID:}
     access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
     bucket-name: ${OSS_BUCKET_NAME:}
     public-base-url: ${OSS_PUBLIC_BASE_URL:}
+
   auth:
     jwt:
       issuer: ${JWT_ISSUER:campushub}
