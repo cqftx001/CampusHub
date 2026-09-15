@@ -205,4 +205,14 @@ public interface ListingRepository
             Pageable pageable
     );
 
+    @Override
+    @EntityGraph(
+            attributePaths = {
+                    "category",
+                    "category.parent",
+                    "brand",
+                    "additionalImageUrls"
+            }
+    )
+    Optional<Listing> findById(UUID id);
 }

@@ -2,11 +2,13 @@ package com.campushub.marketplace.controller;
 
 import com.campushub.marketplace.domain.ListingCondition;
 import com.campushub.marketplace.domain.ListingStatus;
+import com.campushub.marketplace.dto.ChangeListingStatusRequest;
 import com.campushub.marketplace.dto.CreateListingRequest;
 import com.campushub.marketplace.dto.ListingSearchCriteria;
+import com.campushub.marketplace.dto.UpdateListingRequest;
+import com.campushub.marketplace.repository.ListingRepository;
 import com.campushub.marketplace.service.ListingService;
 import com.campushub.marketplace.vo.ListingPageView;
-import com.campushub.marketplace.vo.ListingSummaryView;
 import com.campushub.marketplace.vo.ListingView;
 import com.campushub.marketplace.vo.SellerListingPageView;
 import com.campushub.shared.base.ResponseResult;
@@ -15,6 +17,7 @@ import com.campushub.shared.utils.RequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
+import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -160,7 +163,7 @@ public class ListingController {
         String requestId = RequestUtils.getOrCreateRequestId(request);
 
         SellerListingPageView listings =
-                listingService.searchSellerListing(
+                listingService.searchSellerListings(
                         account.accountId(),
                         status,
                         page,
@@ -184,6 +187,60 @@ public class ListingController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ResponseResult.success(listing, requestId));
+    }
+
+    @PutMapping("/{listingId}")
+    public ResponseEntity<ResponseResult<ListingView>> updateListing(
+            @AuthenticationPrincipal
+            AuthenticatedAccount account,
+
+            @PathVariable
+            UUID listingId,
+
+            @Valid
+            @RequestBody
+            UpdateListingRequest request,
+
+            HttpServletRequest httpServletRequest
+    ){
+        String requestId = RequestUtils.getOrCreateRequestId(httpServletRequest);
+
+        ListingView listing = listingService.updateListing(
+                account.accountId(),
+                listingId,
+                request
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ResponseResult.success(listing, requestId));
+    }
+
+    @PatchMapping("/{listingId}/status")
+    public ResponseEntity<ResponseResult<ListingView>> updateListingStatus(
+        @AuthenticationPrincipal
+        AuthenticatedAccount account,
+
+        @PathVariable
+        UUID listingId,
+
+        @Valid
+        @RequestBody
+        ChangeListingStatusRequest request,
+
+        HttpServletRequest httpServletRequest
+    ) {
+        String requestId = RequestUtils.getOrCreateRequestId(httpServletRequest);
+
+        ListingView listingView = listingService.changeListingStatus(
+                account.accountId(),
+                listingId,
+                request
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ResponseResult.success(listingView, requestId));
     }
 
 }

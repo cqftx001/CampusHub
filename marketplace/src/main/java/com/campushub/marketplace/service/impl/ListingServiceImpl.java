@@ -2,8 +2,10 @@ package com.campushub.marketplace.service.impl;
 
 import com.campushub.marketplace.domain.Listing;
 import com.campushub.marketplace.domain.ListingStatus;
+import com.campushub.marketplace.dto.ChangeListingStatusRequest;
 import com.campushub.marketplace.dto.CreateListingRequest;
 import com.campushub.marketplace.dto.ListingSearchCriteria;
+import com.campushub.marketplace.dto.UpdateListingRequest;
 import com.campushub.marketplace.error.MarketplaceErrorCode;
 import com.campushub.marketplace.error.MarketplaceException;
 import com.campushub.marketplace.mapper.ListingMapper;
@@ -16,6 +18,7 @@ import com.campushub.marketplace.service.ResolvedCatalogSelection;
 import com.campushub.marketplace.utils.CatalogNormalizer;
 import com.campushub.marketplace.vo.*;
 import com.campushub.shared.utils.TextNormalizer;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -48,7 +51,7 @@ public class ListingServiceImpl implements ListingService {
         Objects.requireNonNull(sellerAccountId, "Seller account ID cannot be null");
         Objects.requireNonNull(request, "Create listing request cannot be null");
 
-        validateUniqueImageUrls(request);
+        validateUniqueImageUrls(request.imageUrls());
 
         ResolvedCatalogSelection selection = catalogSelectionResolver
                 .resolveForCreate(
@@ -121,7 +124,7 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
-    public SellerListingPageView searchSellerListing(
+    public SellerListingPageView searchSellerListings(
             UUID sellerAccountId,
             ListingStatus status,
             int page,
@@ -161,6 +164,83 @@ public class ListingServiceImpl implements ListingService {
                 .orElseThrow(() -> new MarketplaceException(MarketplaceErrorCode.LISTING_NOT_FOUND));
 
         return listingMapper.toView(listing);
+    }
+
+    @Override
+    @Transactional
+    public ListingView updateListing(
+            UUID sellerAccountId,
+            UUID listingId,
+            UpdateListingRequest request
+    ) {
+        Objects.requireNonNull(sellerAccountId, "Seller account ID cannot be null");
+        Objects.requireNonNull(listingId, "Listing ID cannot be null");
+        Objects.requireNonNull(request, "Listing request cannot be null");
+
+        Listing listing = findOwnedListing(sellerAccountId, listingId);
+
+        requireExpectedVersion(listing, request.expectedVersion());
+
+        validateUniqueImageUrls(request.imageUrls());
+
+        ResolvedCatalogSelection selection = catalogSelectionResolver.resolveForCreate(
+                request.categorySlug(),
+                request.brandSlug()
+        );
+
+        listing.updateDetails(
+                selection.category(),
+                selection.brand(),
+                request.title(),
+                request.description(),
+                request.manufactureYear(),
+                request.condition(),
+                request.price(),
+                request.location(),
+                request.deliveryMethod(),
+                request.imageUrls()
+        );
+
+        try {
+            Listing saved = listingRepository.saveAndFlush(listing);
+
+            return listingMapper.toView(saved);
+        } catch (OptimisticLockingFailureException exception) {
+            throw listingUpdateConflict();
+        }
+    }
+
+    @Override
+    @Transactional
+    public ListingView changeListingStatus(
+            UUID sellerAccountId,
+            UUID listingId,
+            ChangeListingStatusRequest request
+    ) {
+        Objects.requireNonNull(sellerAccountId, "Seller account ID cannot be null");
+        Objects.requireNonNull(listingId, "Listing ID cannot be null");
+        Objects.requireNonNull(request, "Listing request cannot be null");
+
+        Listing listing = findOwnedListing(sellerAccountId, listingId);
+
+        /*
+         * 相同目标状态代表请求已经成功应用。
+         * 即使客户端携带旧 version，也直接返回当前结果。
+         */
+        if(listing.getStatus() == request.status()) {
+            return listingMapper.toView(listing);
+        }
+
+        requireExpectedVersion(listing, request.expectedVersion());
+
+        listing.changeStatus(request.status());
+        try {
+            Listing saved = listingRepository.saveAndFlush(listing);
+
+            return listingMapper.toView(saved);
+        } catch (OptimisticLockingFailureException exception) {
+            throw listingUpdateConflict();
+        }
     }
 
     // --- helper ---
@@ -230,9 +310,34 @@ public class ListingServiceImpl implements ListingService {
         }
     }
 
-    private void validateUniqueImageUrls(CreateListingRequest request) {
-        if(new HashSet<>(request.imageUrls()).size() != request.imageUrls().size()) {
-            throw new MarketplaceException(MarketplaceErrorCode.INVALID_LISTING_DETAILS, "Image URLs cannot be duplicated");
+    private void validateUniqueImageUrls(List<String> imageUrls) {
+        if (imageUrls != null && new HashSet<>(imageUrls).size() != imageUrls.size()) {
+            throw new MarketplaceException(
+                    MarketplaceErrorCode.INVALID_LISTING_DETAILS,
+                    "Image URLs cannot be duplicated"
+            );
         }
     }
+
+    private Listing findOwnedListing(UUID sellerAccountId, UUID listingId) {
+        Listing listing = listingRepository.findById(listingId)
+                .orElseThrow(() -> new MarketplaceException(MarketplaceErrorCode.LISTING_NOT_FOUND));
+
+        if(!listing.getSellerAccountId().equals(sellerAccountId)) {
+            throw new MarketplaceException(MarketplaceErrorCode.LISTING_ACCESS_DENIED);
+        }
+
+        return listing;
+    }
+
+    private void requireExpectedVersion(Listing listing, Long expectedVersion) {
+        if(expectedVersion == null || expectedVersion != listing.getVersion()) {
+            throw listingUpdateConflict();
+        }
+    }
+
+    private MarketplaceException listingUpdateConflict() {
+        return new MarketplaceException(MarketplaceErrorCode.LISTING_UPDATE_CONFLICT);
+    }
+
 }

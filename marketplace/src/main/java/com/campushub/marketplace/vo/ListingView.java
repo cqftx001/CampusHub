@@ -24,6 +24,7 @@ public record ListingView(
         DeliveryMethod deliveryMethod,
         List<String> imageUrls,
         ListingStatus status,
+        long version,
         Instant createdAt,
         Instant updatedAt
 ) {

@@ -27,6 +27,7 @@ public class ListingMapper {
                 listing.getDeliveryMethod(),
                 listing.getImageUrls(),
                 listing.getStatus(),
+                listing.getVersion(),
                 listing.getCreatedAt(),
                 listing.getUpdatedAt()
         );

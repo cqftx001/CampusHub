@@ -503,8 +503,35 @@ Query parameters:
 - `page`: zero-based page number; defaults to `0`.
 - `size`: page size; defaults to `20` and cannot exceed `50`.
 
-Response data uses the Search Listings page representation, with `status`
-included in every item. Results default to newest first and include all statuses.
+Response data:
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "title": "NVIDIA RTX 5090",
+      "price": 1999.99,
+      "currency": "USD",
+      "primaryImageUrl": "https://example.com/5090.jpg",
+      "status": "ACTIVE",
+      "version": 0,
+      "createdAt": "2026-09-14T10:00:00Z",
+      "updatedAt": "2026-09-14T10:00:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1,
+  "hasNext": false,
+  "hasPrevious": false
+}
+```
+
+Results default to newest first and include every status when `status` is
+omitted. The seller account ID is always taken from the authenticated access
+token and cannot be supplied as a query parameter.
 
 Errors:
 
@@ -528,25 +555,37 @@ most recent listing read:
 
 ```json
 {
+  "categorySlug": "graphics-cards",
+  "brandSlug": "NVIDIA",
   "title": "NVIDIA RTX 5090",
   "description": "Original box and receipt included.",
   "manufactureYear": 2025,
   "condition": "LIKE_NEW",
-  "askingPrice": 1899.00,
+  "price": 1899.00,
   "location": "Main Campus",
-  "coverImageUrl": "https://example.com/5090.jpg",
-  "labels": ["electronics", "graphics-cards"],
+  "deliveryMethod": "LOCAL_PICKUP",
+  "imageUrls": [
+    "https://example.com/5090-front.jpg",
+    "https://example.com/5090-back.jpg"
+  ],
   "expectedVersion": 0
 }
 ```
 
-Updating listing content does not change its status. Response data uses the Get
+Updating listing content does not change its status. `categorySlug` and
+`brandSlug` are normalized to lowercase. The category must be an active
+second-level category; `brandSlug` is optional. Response data uses the Get
 Listing representation with the new version.
 
 Errors:
 
 - `400 COMMON_1001`: request validation failed.
-- `400 MARKETPLACE_1001`: one or more labels do not exist or are inactive.
+- `400 MARKETPLACE_1006`: a catalog slug is invalid.
+- `404 MARKETPLACE_1007`: the category does not exist.
+- `400 MARKETPLACE_1008`: the category cannot be used for a listing.
+- `404 MARKETPLACE_1009`: the brand does not exist.
+- `400 MARKETPLACE_1010`: the brand is inactive.
+- `400 MARKETPLACE_1011`: listing details are invalid.
 - `401 AUTH_1005`: the access token is missing, invalid, expired, or is not
   current for its login session.
 - `403 MARKETPLACE_1003`: the current account does not own the listing.
@@ -573,9 +612,11 @@ Request:
 }
 ```
 
-The seller may change `ACTIVE` to `SOLD` or `WITHDRAWN`, and may reactivate a
-`SOLD` or `WITHDRAWN` listing. Response data uses the Get Listing
-representation.
+Allowed transitions are `ACTIVE` to `SOLD` or `WITHDRAWN`, and `SOLD` or
+`WITHDRAWN` back to `ACTIVE`. Direct `SOLD` to `WITHDRAWN` and `WITHDRAWN` to
+`SOLD` transitions are rejected. Repeating the current target status is
+idempotent and returns the current representation even if the supplied version
+is stale. Response data uses the Get Listing representation.
 
 Errors:
 

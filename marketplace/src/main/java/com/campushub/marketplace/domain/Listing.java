@@ -14,6 +14,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
+import com.campushub.marketplace.error.MarketplaceErrorCode;
+import com.campushub.marketplace.error.MarketplaceException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -179,7 +181,52 @@ public class Listing extends BaseEntity {
                 "Description"
         );
 
-        this.manufactureYear = manufactureYear;
+        this.manufactureYear = requireManufactureYear(manufactureYear);
+
+        this.condition = Objects.requireNonNull(
+                condition,
+                "Condition cannot be null"
+        );
+
+        this.price = requirePrice(price);
+        this.currency = "USD";
+
+        this.location = requireText(location, MAXIMUM_LOCATION_LENGTH, "Location");
+
+        this.deliveryMethod = Objects.requireNonNull(
+                deliveryMethod,
+                "Delivery method cannot be null"
+        );
+
+        List<String> normalizedImages = requireImages(imageUrls);
+
+        this.primaryImageUrl = normalizedImages.getFirst();
+
+        this.additionalImageUrls
+                .addAll(normalizedImages.subList(1, normalizedImages.size()));
+        this.status = ListingStatus.ACTIVE;
+    }
+
+    public void updateDetails(
+            Category category,
+            Brand brand,
+            String title,
+            String description,
+            Integer manufactureYear,
+            ListingCondition condition,
+            BigDecimal price,
+            String location,
+            DeliveryMethod deliveryMethod,
+            List<String> imageUrls
+    ) {
+        this.category = requireListingCategory(category);
+        this.brand = requireActiveBrand(brand);
+
+        this.title = requireText(title, MAXIMUM_TITLE_LENGTH, "Title");
+
+        this.description = requireText(description, MAXIMUM_DESCRIPTION_LENGTH, "Description");
+
+        this.manufactureYear = requireManufactureYear(manufactureYear);
 
         this.condition =
                 Objects.requireNonNull(
@@ -188,13 +235,8 @@ public class Listing extends BaseEntity {
                 );
 
         this.price = requirePrice(price);
-        this.currency = "USD";
 
-        this.location = requireText(
-                location,
-                MAXIMUM_LOCATION_LENGTH,
-                "Location"
-        );
+        this.location = requireText(location, MAXIMUM_LOCATION_LENGTH, "Location");
 
         this.deliveryMethod =
                 Objects.requireNonNull(
@@ -206,9 +248,27 @@ public class Listing extends BaseEntity {
 
         this.primaryImageUrl = normalizedImages.getFirst();
 
-        this.additionalImageUrls
-                .addAll(normalizedImages.subList(1, normalizedImages.size()));
-        this.status = ListingStatus.ACTIVE;
+        this.additionalImageUrls.clear();
+        this.additionalImageUrls.addAll(normalizedImages.subList(1, normalizedImages.size()));
+    }
+
+    public boolean changeStatus(ListingStatus targetStatus) {
+        Objects.requireNonNull(targetStatus, "Target status cannot be null");
+
+        if (status == targetStatus) return false;
+
+        boolean allowed = status == ListingStatus.ACTIVE
+                && (targetStatus == ListingStatus.SOLD || targetStatus == ListingStatus.WITHDRAWN)
+                        ||
+                (status == ListingStatus.SOLD || status == ListingStatus.WITHDRAWN)
+                        && targetStatus == ListingStatus.ACTIVE;
+
+        if (!allowed) {
+            throw new MarketplaceException(MarketplaceErrorCode.INVALID_STATUS_TRANSITION);
+        }
+
+        status = targetStatus;
+        return true;
     }
 
     public UUID getSellerAccountId() {
@@ -275,6 +335,17 @@ public class Listing extends BaseEntity {
 
     public boolean isActive() {
         return status == ListingStatus.ACTIVE;
+    }
+
+    // --- helper ---
+    private static Integer requireManufactureYear(Integer manufactureYear) {
+        if (manufactureYear == null) return null;
+
+        if (manufactureYear < 1800 || manufactureYear > 2100) {
+            throw new IllegalArgumentException("Manufacture year must be between 1800 and 2100");
+        }
+
+        return manufactureYear;
     }
 
     private static Category requireListingCategory(

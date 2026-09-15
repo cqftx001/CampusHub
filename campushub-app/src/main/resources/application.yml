@@ -5,8 +5,8 @@ spring:
     exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/campushub}
-    username: ${POSTGRES_USER:campushub}
-    password: ${POSTGRES_PASSWORD:campushub}
+    username: ${PGDB_USERNAME:campushub}
+    password: ${PGDB_PASSWORD:campushub}
   flyway:
     enabled: true
     locations: classpath:db/migration
