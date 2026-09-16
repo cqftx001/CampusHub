@@ -9,6 +9,7 @@
 ![Maven](https://img.shields.io/badge/Maven-Build-C71A36?style=flat&logo=apachemaven&logoColor=white)
 ![JUnit](https://img.shields.io/badge/JUnit-5-25A162?style=flat&logo=junit5&logoColor=white)
 ![OSS](https://img.shields.io/badge/Cloud-Object_Storage-blue?style=flat)
+![Alibaba Cloud OSS](https://img.shields.io/badge/Alibaba_Cloud-OSS-FF6A00?style=flat&logo=alibabacloud&logoColor=white)
 [![CI](https://github.com/cqftx001/CampusHub/actions/workflows/ci.yml/badge.svg)](https://github.com/cqftx001/CampusHub/actions/workflows/ci.yml)
 
 CampusHub is the backend for a **full-stack campus marketplace platform**, built with Java and Spring Boot.
@@ -16,6 +17,14 @@ CampusHub is the backend for a **full-stack campus marketplace platform**, built
 The project is designed as a **modular monolith** with clearly separated domain boundaries for authentication, users, and marketplace functionality. It focuses on production-oriented backend concerns such as secure authentication, session lifecycle management, transactional consistency, database migrations, Redis-backed security state, object storage, and automated testing.
 
 > Frontend repository: [CampusHub-Web](https://github.com/cqftx001/CampusHub-Web)
+> 
+---
+
+## Demo
+
+<p align="center">
+  <img src="CampusHub.gif" width="900" alt="CampusHub Demo">
+</p>
 
 ---
 
