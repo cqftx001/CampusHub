@@ -41,7 +41,7 @@ spring:
           writetimeout: 5000
 campushub:
   oss:
-    enabled: ${OSS_ENABLED:true}
+    enabled: ${OSS_ENABLED:false}
     endpoint: ${OSS_ENDPOINT:}
     region: ${OSS_REGION:us-west-1}
     access-key-id: ${OSS_ACCESS_KEY_ID:}
